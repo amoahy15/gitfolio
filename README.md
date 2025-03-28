@@ -11,7 +11,7 @@ Humphrey: Frontend, User Interface.
 
 Robert: DevOps, Project Manager.
 
-Group Meeting every Wednesday at 5:30PM
+Group Meeting every Tuesday at 5:30PM
 
 GitFolio is an AI-driven platform designed to automate the creation of professional web portfolios for computer science professionals and students. 
 By transforming static resumes into dynamic, personalized websites, GitFolio eliminates the need for coding expertise, providing an accessible solution for 
