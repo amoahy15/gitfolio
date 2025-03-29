@@ -60,7 +60,7 @@ March 26-April 1: Begin the implementation of the basic web portfolio template
 - Frontend (Humphrey): Create UI mockups to showcase chatbot interaction, ensure UI feasibility aligns with methodology, create base HTML/CSS/JS portfolio templates
 - Backend ~ Computational Linguist (Charlington): Explain backend functionality and chatbot interaction model, develop an initial working prototype for transforming resumes into web portfolios
 - Backend ~ Integration Developer (Joseph): Demonstrate how text analysis will be implemented, establish ChatGPT-based resume processing pipeline
-- DevOps ~ Project Manager (Robert): Manage technical feasibility discussions and project scope, prepare documentation, handle ChatGPT API integration and cost management, 
+- DevOps ~ Project Manager (Robert): Manage technical feasibility discussions and project scope, prepare documentation, handle ChatGPT API integration and cost management 
 
 April 1-7: Implement file upload functionality which should allow users to upload resumes and process them
 - Team (Meeting April 1 in Libs Room 112): Decide model portfolio website
