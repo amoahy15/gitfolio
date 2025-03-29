@@ -41,7 +41,9 @@ March 2-17: Work on presentation
 - Dataset and Evaluation: Joseph
 - Timeline and Roles: Robert
 - End-to-end Example: Charlington
+
 March 17: Proposal Pitch
+
 March 19-24: Work on proposal report
 - Formatting: Robert
 - Abstract: Charlington
@@ -50,25 +52,30 @@ March 19-24: Work on proposal report
 - Proposed Approach: Robert
 - Timeline, Responsibilities, and Schedule: Joseph
 - Appendix: Joseph
+
 March 24: Proposal Report
+
 March 26-April 1: Begin the implementation of the basic web portfolio template
 - Team (Meeting March 26 in Libs Room 107): Purchase ChatGPT call tokens
 - Frontend (Humphrey): Create UI mockups to showcase chatbot interaction, ensure UI feasibility aligns with methodology, create base HTML/CSS/JS portfolio templates
 - Backend ~ Computational Linguist (Charlington): Explain backend functionality and chatbot interaction model, develop an initial working prototype for transforming resumes into web portfolios
 - Backend ~ Integration Developer (Joseph): Demonstrate how text analysis will be implemented, establish ChatGPT-based resume processing pipeline
 - DevOps ~ Project Manager (Robert): Manage technical feasibility discussions and project scope, prepare documentation, handle ChatGPT API integration and cost management, 
+
 April 1-7: Implement file upload functionality which should allow users to upload resumes and process them
 - Team (Meeting April 1 in Libs Room 112): Decide model portfolio website
 - Frontend (Humphrey): Build UI for file uploads
 - Backend ~ Computational Linguist (Charlington): Develop a resume, cover letters, CVs parsing module
 - Backend ~ Integration Developer (Joseph): Import portfolio website model
 - DevOps ~ Project Manager (Robert): Ensure smooth file handling on the server
+
 April 8-14: Integration of necessary external tools and imports with the intention of providing smooth execution of text extraction and web generation within the project
 - Team (Meeting April 8 in Libs Room 103): Agree on test cases for integration
 - Frontend (Humphrey): Work on integrating any new UI elements required by the external tools like feedback widgets or progress indicators related to file parsing and API responses
 - Backend ~ Computational Linguist (Charlington): Implement NLP preprocessing
 - Backend ~ Integration Developer (Joseph): Implement OCR preprocessing
 - DevOps ~ Project Manager (Robert): Ensure API calls and external libraries are functioning
+
 April 15-23: Seek to deal with any project kinks or issues in order to ensure that the chatbot accurately processes a variety of resume formats
 - Team (Meeting April 15 in Libs Room ): Confirm that the entire workflow (upload → parsing → chatbot customization → HTML generation → deployment) meets quality standards before the live demonstration
 - Frontend (Humphrey): Fix any UI issues
@@ -76,7 +83,9 @@ April 15-23: Seek to deal with any project kinks or issues in order to ensure th
 - Backend ~ Integration Developer (Joseph): Fix any API or library calls not working
 - DevOps ~ Project Manager (Robert): Run test cases and take note of any abnormalities
 - Team (Meeting April 22 in Libs Room ): Practice Presentation
+
 April 23: Live Demonstration
+
 April 25-May 5: Work on final report
 - Formatting: Robert
 - Abstract: Joseph
@@ -85,4 +94,5 @@ April 25-May 5: Work on final report
 - Proposed Approach: Kwame
 - Timeline, Responsibilities, and Schedule: Robert
 - Appendix: Joseph
+
 May 5: Final Report
