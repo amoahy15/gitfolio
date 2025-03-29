@@ -55,7 +55,7 @@ March 19-24: Work on proposal report
 
 March 24: Proposal Report
 
-March 26-April 1: Begin the implementation of the basic web portfolio template
+March 26-March 31: Begin the implementation of the basic web portfolio template
 - Team (Meeting March 26 in Libs Room 107): Purchase ChatGPT call tokens
 - Frontend (Humphrey): Create UI mockups to showcase chatbot interaction, ensure UI feasibility aligns with methodology, create base HTML/CSS/JS portfolio templates
 - Backend ~ Computational Linguist (Charlington): Explain backend functionality and chatbot interaction model, develop an initial working prototype for transforming resumes into web portfolios
