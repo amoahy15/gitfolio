@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify
-import openai
+from openai import OpenAI
 import os
 from dotenv import load_dotenv
 import math
@@ -8,9 +8,10 @@ import math
 load_dotenv()
 
 app = Flask(__name__)
+client = OpenAI(api_key = os.environ.get("OPENAI_API_KEY"))
 
 # Securely load the OpenAI API key
-openai.api_key = os.getenv("OPENAI_API_KEY")
+
 
 def extract_portfolio_details(resume_text: str) -> dict:
     """
@@ -26,8 +27,8 @@ def extract_portfolio_details(resume_text: str) -> dict:
             "Name, Job Title, Skills (comma-separated), and Projects (comma-separated)."
         )
         
-        response = openai.ChatCompletion.create(
-            model="gpt-4",
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": resume_text}
@@ -36,10 +37,10 @@ def extract_portfolio_details(resume_text: str) -> dict:
             temperature=0.5
         )
         
-        portfolio_data = response["choices"][0]["message"]["content"]
+        portfolio_data = response.choices[0].message.content
         return {"portfolio_data": portfolio_data}
     
-    except openai.error.OpenAIError as e:
+    except Exception as e:
         return {"error": f"OpenAI API error: {str(e)}"}
 
 @app.route('/')
@@ -85,16 +86,16 @@ def chat_portfolio():
     messages = [system_message] + conversation
     
     try:
-        response = openai.ChatCompletion.create(
+        response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=messages,
             max_tokens=150,
             temperature=0.7
         )
-        suggestion = response["choices"][0]["message"]["content"]
+        suggestion = response.choices[0].message.content
         return jsonify({"suggestion": suggestion}), 200
-    except openai.error.OpenAIError as e:
+    except Exception as e:
         return jsonify({"error": f"OpenAI API error: {str(e)}"}), 500
-
+    
 if __name__ == '__main__':
     app.run(debug=True)
