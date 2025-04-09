@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
+import './App.css';
 import Background from './components/Background';
 import Banner from './components/Banner';
+import ChatPortfolio from './components/ChatPortfolio';
 import TeamPage from './components/TeamPage';
-import './App.css';
 
 function App() {
   const [activePage, setActivePage] = useState('home');
@@ -18,7 +19,7 @@ function App() {
       case 'team':
         return <TeamPage />;
       case 'home':
-        return <div className="home-content"></div>;
+        return <ChatPortfolio />;
       case 'demo':
         return <div className="demo-content"></div>;
       case 'login':
