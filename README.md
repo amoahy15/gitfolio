@@ -77,7 +77,7 @@ April 8-14: Integration of necessary external tools and imports with the intenti
 - DevOps ~ Project Manager (Robert): Ensure API calls and external libraries are functioning
 
 April 15-23: Seek to deal with any project kinks or issues in order to ensure that the chatbot accurately processes a variety of resume formats
-- Team (Meeting April 15 in Libs Room ): Confirm that the entire workflow (upload → parsing → chatbot customization → HTML generation → deployment) meets quality standards before the live demonstration
+- Team (Meeting April 15 in Libs Room 107): Confirm that the entire workflow (upload → parsing → chatbot customization → HTML generation → deployment) meets quality standards before the live demonstration
 - Frontend (Humphrey): Fix any UI issues
 - Backend ~ Computational Linguist (Charlington): Fix any NLP or regex issues that are present
 - Backend ~ Integration Developer (Joseph): Fix any API or library calls not working
@@ -85,6 +85,7 @@ April 15-23: Seek to deal with any project kinks or issues in order to ensure th
 - Team (Meeting April 22 in Libs Room ): Practice Presentation
 
 April 23: Live Demonstration
+- Team (Meeting April 20 in Libs Room 107): Practice Project Demo and understand final report expectations
 
 April 25-May 5: Work on final report
 - Formatting: Robert
