@@ -85,7 +85,7 @@ April 15-23: Seek to deal with any project kinks or issues in order to ensure th
 - Team (Meeting April 22 in Libs Room ): Practice Presentation
 
 April 23: Live Demonstration
-- Team (Meeting April 20 in Libs Room 107): Practice Project Demo and understand final report expectations
+- Team (Meeting April 20 at 2PM in Libs Room 107): Practice Project Demo and understand final report expectations
 
 April 25-May 5: Work on final report
 - Formatting: Robert
