@@ -56,6 +56,44 @@ def extract_portfolio_details(resume_text: str) -> dict:
         
     except Exception as e:
         return {"error": f"OpenAI API error: {str(e)}"}
+    
+def generate_portfolio_html(portfolio_data: dict) -> dict:
+    """
+    Generate an HTML portfolio page using GPT based on extracted portfolio data.
+    Returns a dictionary with either the HTML or an error message.
+    """
+    if "error" in portfolio_data:
+        return {"error": "Invalid input data: " + portfolio_data["error"]}
+    
+    try:
+        system_prompt = (
+            "You are a skilled web developer wanting to create a portfolio to showcase their skills. "
+            "Take the following JSON data extracted from a resume "
+            "and create a clean, responsive HTML portfolio page. Use simple CSS styles inline. "
+            "Only return the full HTML content (starting with <!DOCTYPE html>)."
+        )
+
+        user_input = json.dumps(portfolio_data, indent=2)
+
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_input}
+            ],
+            max_tokens=1500,
+            temperature=0.4
+        )
+
+        html_content = response.choices[0].message.content.strip()
+        html_content = re.sub(r'^```(?:html)?|```$', '', html_content.strip(), flags=re.MULTILINE).strip()
+        if not html_content.startswith("<!DOCTYPE html>"):
+            return {"error": "Unexpected response format", "raw_response": html_content}
+        
+        return {"html": html_content}
+
+    except Exception as e:
+        return {"error": f"OpenAI API error: {str(e)}"}
 
 @app.route('/')
 def home():
@@ -85,7 +123,9 @@ def generate_portfolio():
         
         result = extract_portfolio_details(resume_text)
         status = 400 if "error" in result else 200
-        return jsonify(result), status
+        portfolio = generate_portfolio_html(result)
+        status = 400 if "error" in portfolio else 200
+        return jsonify(portfolio), status
     
     except Exception as e:
         jsonify({"error": f"Failed to process file: {str(e)}"}), 500
