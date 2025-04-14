@@ -2,8 +2,10 @@ from flask import Flask, request, jsonify
 from openai import OpenAI
 import os
 from dotenv import load_dotenv
-import math
-
+import PyPDF2
+import docx
+import json
+import re
 # Load environment variables from a .env file
 load_dotenv()
 
@@ -23,8 +25,14 @@ def extract_portfolio_details(resume_text: str) -> dict:
     try:
         system_prompt = (
             "Extract key details from the resume for a portfolio. "
-            "Return only the following details in order (each on a new line): "
-            "Name, Job Title, Skills (comma-separated), and Projects (comma-separated)."
+            "Return **only** valid JSON with the following fields:\n\n "
+            "{\n"
+            "  \"name\": string,\n"
+            "  \"job_title\": string,\n"
+            "  \"skills\": [string],\n"
+            "  \"projects\": [string],\n"
+            "  \"work_experience\": [string]\n"
+            "}"
         )
         
         response = client.chat.completions.create(
@@ -37,9 +45,14 @@ def extract_portfolio_details(resume_text: str) -> dict:
             temperature=0.5
         )
         
-        portfolio_data = response.choices[0].message.content
-        return {"portfolio_data": portfolio_data}
-    
+        portfolio_data = response.choices[0].message.content.strip()
+        portfolio_data = re.sub(r"^```(json)?|```$", "", portfolio_data.strip())
+        try: 
+            portfolio_json = json.loads(portfolio_data)
+            return portfolio_json
+        except json.JSONDecodeError:
+            return {"raw_response": portfolio_data, "warning": "Could not parse JSON"}
+        
     except Exception as e:
         return {"error": f"OpenAI API error: {str(e)}"}
 
@@ -53,11 +66,28 @@ def generate_portfolio():
     Endpoint that receives a resume via POST, processes it with ChatGPT,
     and returns the extracted portfolio details.
     """
-    data = request.get_json()
-    resume_text = data.get("resume", "")
-    result = extract_portfolio_details(resume_text)
-    status = 400 if "error" in result else 200
-    return jsonify(result), status
+    
+    data = request.files['resume_file']
+    if data.filename == '':
+        return jsonify({"error": "No file selected"}), 400
+    try:
+        if(data.filename.endswith('.pdf')):
+            reader = PyPDF2.PdfReader(data)
+            resume_text = ' '.join(page.extract_text() for page in reader.pages if page.extract_text())
+        elif data.filename.endswith('.txt'):
+            resume_text = data.read().decode('utf-8')
+        elif data.filename.endswith('.docx'):
+            doc = docx.Document(data)
+            resume_text = "\n".join([para.text for para in doc.paragrahs])
+        else:
+            return jsonify({"error": "Unsupported file type"}), 400
+        
+        result = extract_portfolio_details(resume_text)
+        status = 400 if "error" in result else 200
+        return jsonify(result), status
+    
+    except Exception as e:
+        jsonify({"error": f"Failed to process file: {str(e)}"}), 500
 
 @app.route('/chat_portfolio', methods=['POST'])
 def chat_portfolio():
@@ -79,6 +109,7 @@ def chat_portfolio():
         "content": (
             "You are a friendly personal assistant for building a web portfolio. "
             "You provide thoughtful, non-pushy suggestions based on the user's input and the needs of the computer science job market. "
+            "Once the user gives you their resume, generate an html file to create a portfolio"
             "Give clear, concise suggestions to help improve the portfolio, but let the user decide."
         )
     }
