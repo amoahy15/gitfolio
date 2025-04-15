@@ -57,6 +57,7 @@ def extract_portfolio_details(resume_text: str) -> dict:
     except Exception as e:
         return {"error": f"OpenAI API error: {str(e)}"}
     
+    
 def generate_portfolio_html(portfolio_data: dict) -> dict:
     """
     Generate an HTML portfolio page using GPT based on extracted portfolio data.
@@ -69,7 +70,7 @@ def generate_portfolio_html(portfolio_data: dict) -> dict:
         system_prompt = (
             "You are a skilled web developer wanting to create a portfolio to showcase their skills. "
             "Take the following JSON data extracted from a resume "
-            "and create a clean, responsive HTML portfolio page. Use simple CSS styles inline. "
+            "and create a clean, responsive HTML portfolio page with a sleek, minimalistic design. "
             "Only return the full HTML content (starting with <!DOCTYPE html>)."
         )
 
@@ -117,7 +118,7 @@ def generate_portfolio():
             resume_text = data.read().decode('utf-8')
         elif data.filename.endswith('.docx'):
             doc = docx.Document(data)
-            resume_text = "\n".join([para.text for para in doc.paragrahs])
+            resume_text = "\n".join([para.text for para in doc.paragraphs])
         else:
             return jsonify({"error": "Unsupported file type"}), 400
         
@@ -128,7 +129,8 @@ def generate_portfolio():
         return jsonify(portfolio), status
     
     except Exception as e:
-        jsonify({"error": f"Failed to process file: {str(e)}"}), 500
+        return jsonify({"error": f"Failed to process file: {str(e)}"}), 500
+
 
 @app.route('/chat_portfolio', methods=['POST'])
 def chat_portfolio():
