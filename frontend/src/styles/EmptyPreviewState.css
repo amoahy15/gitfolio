@@ -1,0 +1,56 @@
+/* Empty Preview State Styles */
+.empty-preview-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    background-color: #f0f4f8;
+    border-radius: 8px;
+  }
+ 
+  .empty-preview-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    max-width: 400px;
+    text-align: center;
+  }
+  
+  .empty-preview-message {
+    margin-top: 20px;
+  }
+  
+  .empty-preview-message h3 {
+    color: #0EA5E9;
+    font-size: 1.5rem;
+    margin-bottom: 10px;
+  }
+  
+  .empty-preview-message p {
+    color: #64748b;
+    margin-bottom: 8px;
+    line-height: 1.5;
+  }
+  
+  /* SVG Animation */
+  .empty-preview-state svg {
+    animation: pulse 3s infinite ease-in-out;
+  }
+  
+  @keyframes pulse {
+    0% {
+      transform: scale(1);
+      opacity: 1;
+    }
+    50% {
+      transform: scale(1.05);
+      opacity: 0.8;
+    }
+    100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
