@@ -1,0 +1,205 @@
+/* Chat window container */
+.chat-window {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background-color: #1e1e1e;
+  color: #ffffff;
+  padding: 20px;
+  border-radius: 8px;
+  overflow: hidden;
+  height: 100%;
+}
+
+/* Header styling */
+.chat-header-container {
+  background-color: #2a2a2a;
+  padding: 15px;
+  border-radius: 6px 6px 0 0;
+  margin: -20px -20px 15px -20px;
+  position: relative;
+}
+
+.chat-header {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: white;
+  text-align: center;
+  margin: 0;
+  padding-bottom: 10px;
+}
+
+/* Chat history */
+.chat-history {
+  flex-grow: 1;
+  overflow-y: auto;
+  padding-right: 5px;
+  margin-bottom: 15px;
+  max-height: calc(100% - 200px);
+}
+
+.chat-message {
+  margin-bottom: 15px;
+  background-color: #2c2c2c;
+  padding: 10px;
+  border-radius: 6px;
+}
+
+.chat-text {
+  color: #ffffff;
+  font-size: 1rem;
+  margin: 0;
+}
+
+.chat-file {
+  margin-top: 5px;
+  font-size: 0.85rem;
+  color: #bbbbbb;
+  margin: 5px 0 0 0;
+}
+
+/* Chat controls area - contains input and buttons */
+.chat-controls {
+  margin-top: auto;
+  border-radius: 8px;
+  background-color: #2a2a2a;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.chat-input-container {
+  width: 100%;
+  background-color: transparent;
+}
+
+.chat-textarea {
+  width: 100%;
+  background-color: transparent;
+  color: #fff;
+  border: none;
+  padding: 15px;
+  resize: vertical;
+  min-height: 60px;
+  max-height: 200px;
+  font-family: inherit;
+  font-size: 1rem;
+  outline: none;
+  box-sizing: border-box;
+}
+
+/* Actions row - contains buttons */
+.chat-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.chat-actions-left {
+  display: flex;
+  align-items: center;
+}
+
+.chat-actions-right {
+  display: flex;
+  align-items: center;
+}
+
+/* Button styling */
+.action-button {
+  background-color: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s;
+}
+
+.action-button:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.file-button {
+  color: #ffffff;
+}
+
+.send-button {
+  color: #00ffcc;
+  background-color: #2f2f2f;
+  padding: 6px 15px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.send-button:hover {
+  background-color: #3a3a3a;
+}
+
+.send-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.send-text {
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.button-icon {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+}
+
+.send-button .button-icon,
+.send-icon {
+  width: 24px;
+  height: 24px;
+}
+
+/* Selected file indicator */
+.selected-file {
+  padding: 8px 12px;
+  background-color: #333;
+  border-top: 1px solid #444;
+}
+
+.file-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2px 8px;
+  background-color: #444;
+  border-radius: 4px;
+  max-width: fit-content;
+}
+
+.file-name {
+  font-size: 0.85rem;
+  color: #bbbbbb;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-right: 5px;
+}
+
+.remove-file {
+  background: none;
+  border: none;
+  color: #bbbbbb;
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+}
+
+.remove-file:hover {
+  color: #ffffff;
+}

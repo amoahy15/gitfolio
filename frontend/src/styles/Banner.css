@@ -1,0 +1,119 @@
+.banner {
+    width: 100%;
+    background-color: rgba(15, 23, 42, 0.8);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid rgba(14, 165, 233, 0.2);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+  }
+  
+  .banner-container {
+    display: flex;
+    flex-direction: column; /* Stack elements vertically */
+    align-items: center; /* Center-align content */
+    justify-content: center;
+    padding: 1rem 2rem;
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    box-sizing: border-box;
+    text-align: center;
+}
+.logo {
+    display: flex; 
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 0.5rem; 
+}
+  
+  .logo h1 {
+    margin: 0;
+    font-size: 2.2rem;
+    font-weight: 700;
+    color: #FFFFFF;
+    letter-spacing: 0.5px;
+    background: linear-gradient(90deg, #FFFFFF, #64FFDA);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+    padding: 0;
+  }
+  
+  .tabs {
+    display: flex;
+    align-items: center;
+  }
+  
+  .tab-list {
+    list-style-type: none;
+    display: flex;
+    margin: 0;
+    padding: 0;
+  }
+  
+  .tab {
+    padding: 0.75rem 1.25rem;
+    margin: 0 0.25rem;
+    cursor: pointer;
+    color: #94A3B8;
+    font-size: 1.1rem;
+    font-weight: 500;
+    position: relative;
+    transition: color 0.3s ease;
+    border-radius: 4px;
+  }
+  
+  .tab:hover {
+    color: #FFFFFF;
+    background-color: rgba(14, 165, 233, 0.1);
+  }
+  
+  .tab.active {
+    color: #64FFDA;
+  }
+  
+  .tab.active::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 20px;
+    height: 3px;
+    background-color: #64FFDA;
+    border-radius: 3px 3px 0 0;
+  }
+  
+  /* Responsive styles */
+  @media (max-width: 768px) {
+    .banner-container {
+      flex-direction: column;
+      padding: 1rem;
+    }
+    
+    .logo {
+      width: 100%;
+      justify-content: center;
+      margin-bottom: 0.5rem;
+    }
+    
+    .tabs {
+      width: 100%;
+      justify-content: center;
+      margin-left: auto; 
+    }
+    
+    .tab-list {
+      justify-content: center;
+      flex-wrap: wrap;
+      width: 100%;
+    }
+    
+    .tab {
+      padding: 0.5rem 0.75rem;
+      margin: 0.25rem;
+      font-size: 1rem;
+    }
+  }
