@@ -24,15 +24,16 @@ def extract_portfolio_details(resume_text: str) -> dict:
     
     try:
         system_prompt = (
-            "Extract key details from the resume for a portfolio. "
-            "Return **only** valid JSON with the following fields:\n\n "
+            "Extract key details from the resume text and return only valid JSON with the following structure. "
+            "All fields must be included, even if empty. For 'experience', include key roles, company names, and bullet points of responsibilities or achievements:\n\n"
             "{\n"
             "  \"name\": string,\n"
             "  \"link(s)\": [string],\n"
+            "  \"education\": [string],\n"
             "  \"coursework\": [string],\n"
             "  \"skills\": [string],\n"
             "  \"projects\": [string],\n"
-            "  \"work_experience\": [string]\n"
+            "  \"experience\": [string]\n"
             "}"
         )
         
@@ -42,12 +43,13 @@ def extract_portfolio_details(resume_text: str) -> dict:
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": resume_text}
             ],
-            max_tokens=250,
+            max_tokens=1000,
             temperature=0.5
         )
         
         portfolio_data = response.choices[0].message.content.strip()
-        portfolio_data = re.sub(r"^```(json)?|```$", "", portfolio_data.strip())
+        portfolio_data = re.sub(r"```(?:json)?\n?(.*?)```", r"\1", portfolio_data, flags=re.DOTALL).strip()
+        portfolio_data = re.sub(r",\s*(\}|\])", r"\1", portfolio_data)
         try: 
             portfolio_json = json.loads(portfolio_data)
             return portfolio_json
