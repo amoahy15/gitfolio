@@ -25,7 +25,7 @@ def extract_portfolio_details(resume_text: str) -> dict:
     try:
         system_prompt = (
             "Extract key details from the resume text and return only valid JSON with the following structure. "
-            "All fields must be included, even if empty. For 'experience', include key roles, company names, and bullet points of responsibilities or achievements:\n\n"
+            "All fields must be included, even if empty. For 'experience', include key roles, company names, and bullet points of responsibilities or achievements. For 'projects', include the project name, the skills used, and bullet points of information about the project:\n\n"
             "{\n"
             "  \"name\": string,\n"
             "  \"link(s)\": [string],\n"
@@ -38,7 +38,7 @@ def extract_portfolio_details(resume_text: str) -> dict:
         )
         
         response = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="ft:gpt-4o-mini-2024-07-18:gitfolio::BO7w5BdR",
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": resume_text}
@@ -70,21 +70,20 @@ def generate_portfolio_html(portfolio_data: dict) -> dict:
     
     try:
         system_prompt = (
-            "You are a skilled web developer wanting to create a portfolio to showcase their skills. "
-            "Take the following JSON data extracted from a resume "
-            "and create a clean, responsive HTML portfolio page with a sleek, minimalistic design. "
-            "Only return the full HTML content (starting with <!DOCTYPE html>)."
+            "You are a friendly personal asisstant for building a web portfolio"
+            "You provide, thoughtful, non-pushy suggestions based on the user's input and the needs of the computer science job market"
+            "Take the following JSON data extracted from a resume and generate an HTML file to create a web portfolio"
         )
 
         user_input = json.dumps(portfolio_data, indent=2)
 
         response = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="ft:gpt-4o-mini-2024-07-18:gitfolio::BO7w5BdR",
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_input}
             ],
-            max_tokens=1500,
+            max_tokens=3000,
             temperature=0.4
         )
 
@@ -163,7 +162,7 @@ def chat_portfolio():
     
     try:
         response = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="ft:gpt-4o-mini-2024-07-18:gitfolio::BO7w5BdR",
             messages=messages,
             max_tokens=150,
             temperature=0.7
