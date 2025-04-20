@@ -1,6 +1,6 @@
 import React from 'react';
+import '../styles/PortfolioPreview.css';
 import EmptyPreviewState from './EmptyPreviewState';
-import '../styles/PortfolioPreview.css'
 
 const PortfolioPreview = ({ hasInteracted }) => {
   return (

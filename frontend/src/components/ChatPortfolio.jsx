@@ -16,19 +16,44 @@ const ChatPortfolio = () => {
     setFile(e.target.files[0]);
   };
 
-  const handleSend = () => {
-    if (chatInput.trim() === '' && !file) return;
-    
-    // Add the user's message to the chat history
-    const newMessage = { 
-      sender: 'user', 
-      text: chatInput, 
-      file: file ? file.name : null 
+  const [portfolioPreviewUrl, setPortfolioPreviewUrl] = useState(null);
+
+  const handleSend = async () => {
+    if (!chatInput.trim() && !file) return;
+  
+    const newMessage = {
+      sender: 'user',
+      text: chatInput,
+      file: file?.name || null,
     };
-    
+  
     setChatHistory([...chatHistory, newMessage]);
-    
-    // Reset input field and file attachment
+  
+    if (file) {
+      const formData = new FormData();
+      formData.append('resume_file', file);
+  
+      try {
+        const response = await fetch('http://localhost:5000/generate_portfolio', {
+          method: 'POST',
+          body: formData,
+        });
+  
+        const result = await response.json();
+  
+        if (result.html) {
+          // Dynamically create a blob URL to preview it
+          const blob = new Blob([result.html], { type: 'text/html' });
+          const previewURL = URL.createObjectURL(blob);
+          setPortfolioPreviewUrl(previewURL);
+        } else {
+          console.error(result.error || result.warning);
+        }
+      } catch (error) {
+        console.error('Upload failed:', error);
+      }
+    }
+  
     setChatInput('');
     setFile(null);
   };
