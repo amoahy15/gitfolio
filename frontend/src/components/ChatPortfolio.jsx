@@ -7,59 +7,53 @@ const ChatPortfolio = () => {
   const [chatInput, setChatInput] = useState('');
   const [chatHistory, setChatHistory] = useState([]);
   const [file, setFile] = useState(null);
-
-  const handleInputChange = (e) => {
-    setChatInput(e.target.value);
-  };
+  const [generatedHtml, setGeneratedHtml] = useState('');
+  const [hasInteracted, setHasInteracted] = useState(false);
 
   const handleFileChange = (e) => {
     setFile(e.target.files[0]);
   };
 
-  const [portfolioPreviewUrl, setPortfolioPreviewUrl] = useState(null);
-
   const handleSend = async () => {
-    if (!chatInput.trim() && !file) return;
+    try {
+      if (file) {
+        const formData = new FormData();
+        formData.append('resume_file', file);
   
-    const newMessage = {
-      sender: 'user',
-      text: chatInput,
-      file: file?.name || null,
-    };
-  
-    setChatHistory([...chatHistory, newMessage]);
-  
-    if (file) {
-      const formData = new FormData();
-      formData.append('resume_file', file);
-  
-      try {
-        const response = await fetch('http://localhost:5000/generate_portfolio', {
+        const response = await fetch('http://127.0.0.1:5000/generate_portfolio', {
           method: 'POST',
           body: formData,
         });
   
         const result = await response.json();
-  
         if (result.html) {
-          // Dynamically create a blob URL to preview it
-          const blob = new Blob([result.html], { type: 'text/html' });
-          const previewURL = URL.createObjectURL(blob);
-          setPortfolioPreviewUrl(previewURL);
+          setGeneratedHtml(result.html);
+          setHasInteracted(true);
         } else {
-          console.error(result.error || result.warning);
+          alert("Portfolio generation failed.");
         }
-      } catch (error) {
-        console.error('Upload failed:', error);
-      }
-    }
+      } else {
+        const updatedChat = [...chatHistory, { sender: 'user', text: chatInput }];
+        const response = await fetch('http://127.0.0.1:5000/chat_portfolio', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ conversation: updatedChat }),
+        });
   
-    setChatInput('');
-    setFile(null);
+        const result = await response.json();
+        setChatHistory([
+          ...updatedChat,
+          { sender: 'bot', text: result.suggestion || 'No response' },
+        ]);
+      }
+  
+      setChatInput('');
+      setFile(null);
+    } catch (err) {
+      console.error("Fetch error:", err);
+      alert("Failed to contact backend. Make sure Flask is running.");
+    }
   };
-
-  // Check if user has interacted with the chat
-  const hasInteracted = chatHistory.length > 0;
 
   return (
     <div className="chat-portfolio-container">
@@ -71,7 +65,7 @@ const ChatPortfolio = () => {
         handleSend={handleSend}
         file={file}
       />
-      <PortfolioPreview hasInteracted={hasInteracted} />
+      <PortfolioPreview hasInteracted={hasInteracted} generatedHtml={generatedHtml} />
     </div>
   );
 };

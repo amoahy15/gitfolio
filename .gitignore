@@ -1,7 +1,35 @@
+# Node dependencies
 node_modules
-.env
+frontend/node_modules
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Builds
 build/
 dist/
+frontend/build
+
+# Environment files
+.env
+.env.*
 backend/.env
+
+# Testing
+coverage/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 test.jsonl
 
+# Misc
+.DS_Store
+
+# Editor-specific
+.vscode/
+.idea/
+.pnp
+.pnp.js
