@@ -21,22 +21,10 @@ const Banner = ({ onTabChange, activeTab }) => {
               Home
             </li>
             <li 
-              className={`tab ${activeTab === 'demo' ? 'active' : ''}`}
-              onClick={() => handleTabClick('demo')}
-            >
-              Demo
-            </li>
-            <li 
               className={`tab ${activeTab === 'team' ? 'active' : ''}`}
               onClick={() => handleTabClick('team')}
             >
               Meet the Team
-            </li>
-            <li 
-              className={`tab ${activeTab === 'login' ? 'active' : ''}`}
-              onClick={() => handleTabClick('login')}
-            >
-              Login
             </li>
           </ul>
         </div>

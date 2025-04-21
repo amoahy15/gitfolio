@@ -20,10 +20,6 @@ function App() {
         return <TeamPage />;
       case 'home':
         return <ChatPortfolio />;
-      case 'demo':
-        return <div className="demo-content"></div>;
-      case 'login':
-        return <div className="login-content"></div>;
       default:
         return <div className="home-content"></div>;
     }
