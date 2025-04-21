@@ -3,12 +3,11 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches:
-      - main
+      - main  # Or your deployment branch
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
@@ -16,7 +15,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '20'
+          node-version: '20'  # Or your preferred Node.js version
 
       - name: Install dependencies
         working-directory: frontend
@@ -29,5 +28,6 @@ jobs:
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: frontend/build
+          github_token: ${{ secrets.GITHUB_TOKEN }}  # Use the built-in token
+          publish_dir: frontend/build # Your build output directory
+          force_orphan: true # Optional - useful for first deployment if gh-pages branch doesn't exist
