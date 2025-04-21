@@ -1,12 +1,15 @@
-/* Empty Preview State Styles */
+/* Empty state styling */
 .empty-preview-state {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   height: 100%;
+  width: 100%;
   background-color: #f0f4f8;
-  border-radius: 8px;
+  border-radius: 0 0 8px 8px;
+  overflow: hidden;
+  flex: 1; /* Take up remaining space */
 }
 
 .empty-preview-content {
@@ -14,9 +17,9 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 20px;
-  max-width: 400px;
   text-align: center;
+  max-width: 90%;
+  padding: 20px;
 }
 
 .empty-preview-message {
@@ -24,47 +27,38 @@
 }
 
 .empty-preview-message h3 {
-  color: #0EA5E9;
-  font-size: 1.5rem;
+  color: #333;
+  font-size: 1.4rem;
   margin-bottom: 10px;
 }
 
 .empty-preview-message p {
-  color: #64748b;
-  margin-bottom: 8px;
-  line-height: 1.5;
+  color: #666;
+  font-size: 1rem;
+  margin: 5px 0;
 }
 
-/* SVG Animation */
-.empty-preview-state svg {
-  animation: pulse 3s infinite ease-in-out;
+.preview-header {
+  margin-bottom: 20px;
 }
 
-/* New Spinning Animation */
+.title-underline {
+  width: 50px;
+  height: 4px;
+  background-color: #0EA5E9;
+  margin: 0 auto;
+}
+
+/* SVG animation for generating state */
 .generating-spin {
-  animation: spin 2s infinite linear !important;
-}
-
-@keyframes pulse {
-  0% {
-    transform: scale(1);
-    opacity: 1;
-  }
-  50% {
-    transform: scale(1.05);
-    opacity: 0.8;
-  }
-  100% {
-    transform: scale(1);
-    opacity: 1;
-  }
+  animation: spin 2s linear infinite;
 }
 
 @keyframes spin {
-  0% {
+  from {
     transform: rotate(0deg);
   }
-  100% {
+  to {
     transform: rotate(360deg);
   }
 }
