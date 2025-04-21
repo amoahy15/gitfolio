@@ -1,23 +1,25 @@
-/* Chat window container */
+/* Chat window container - completely revised structure */
 .chat-window {
   flex: 1;
   display: flex;
   flex-direction: column;
   background-color: #1e1e1e;
   color: #ffffff;
-  padding: 0;
   border-radius: 8px;
-  overflow: hidden;
-  height: 100%;
   border: 1px solid #333;
+  position: relative;
+  overflow: hidden; /* Changed back to hidden for the container */
+  height: 100%;
+  box-sizing: border-box;
 }
 
 /* Header styling */
 .chat-header-container {
   background-color: #2a2a2a;
-  padding: 16px;
+  padding: 12px;
   border-bottom: 1px solid #333;
-  position: relative;
+  z-index: 10;
+  flex-shrink: 0; /* Prevent shrinking */
 }
 
 .chat-header {
@@ -28,18 +30,19 @@
   margin: 0;
 }
 
-/* Chat history */
+/* Chat history - dynamic area */
 .chat-history {
-  flex-grow: 1;
+  flex: 1; /* Take remaining space */
   overflow-y: auto;
   scrollbar-width: thin;
   scrollbar-color: #444 #2a2a2a;
+  position: relative; /* For proper scrolling */
   display: flex;
   flex-direction: column;
 }
 
 .chat-history::-webkit-scrollbar {
-  width: 8px;
+  width: 6px;
 }
 
 .chat-history::-webkit-scrollbar-track {
@@ -67,11 +70,11 @@
   width: 100%;
 }
 
-/* Message group styling - Claude/ChatGPT style */
+/* Message group styling */
 .message-group {
   display: flex;
   flex-direction: column;
-  padding: 16px;
+  padding: 12px;
   border-bottom: 1px solid #333;
   animation: fadeIn 0.3s ease-in-out;
   width: 100%;
@@ -100,7 +103,7 @@
 }
 
 .message-content p {
-  margin: 0 0 12px 0;
+  margin: 0 0 10px 0;
 }
 
 .message-content p:last-child {
@@ -191,12 +194,12 @@
   }
 }
 
-/* Chat controls area - contains input and buttons */
 .chat-controls {
-  margin-top: auto;
   border-top: 1px solid #333;
   background-color: #2a2a2a;
-  overflow: hidden;
+  position: relative;
+  z-index: 10;
+  flex-shrink: 0;
   display: flex;
   flex-direction: column;
 }
@@ -212,10 +215,10 @@
   background-color: transparent;
   color: #fff;
   border: none;
-  padding: 15px;
+  padding: 12px;
   resize: none;
   min-height: 24px;
-  max-height: 150px;
+  max-height: 120px;
   font-family: inherit;
   font-size: 1rem;
   outline: none;
@@ -257,7 +260,7 @@
   background-color: transparent;
   border: none;
   cursor: pointer;
-  padding: 8px;
+  padding: 6px;
   border-radius: 4px;
   display: flex;
   align-items: center;
@@ -281,7 +284,7 @@
 .send-button {
   color: #00ffcc;
   background-color: #2f2f2f;
-  padding: 8px;
+  padding: 6px;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -293,20 +296,20 @@
 }
 
 .button-icon {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   object-fit: contain;
 }
 
 .send-button .button-icon,
 .send-icon {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
 }
 
 /* Selected file indicator */
 .selected-file {
-  padding: 8px 12px;
+  padding: 6px 10px;
   background-color: #333;
   border-top: 1px solid #444;
 }
@@ -315,7 +318,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 6px 10px;
+  padding: 5px 8px;
   background-color: #444;
   border-radius: 4px;
   max-width: fit-content;
