@@ -105,6 +105,52 @@ def generate_portfolio_html(portfolio_data: dict) -> dict:
     except Exception as e:
         return {"error": f"OpenAI API error: {str(e)}"}
 
+def update_portfolio_html(user_request: str, current_portfolio_html: str, portfolio_data: dict) -> dict:
+    """
+    Update the existing HTML portfolio based on user's chat request.
+    Returns a dictionary with the updated HTML or an error message.
+    """
+    if not current_portfolio_html:
+        return {"error": "No existing portfolio to update"}
+    
+    try:
+        system_prompt = (
+            "You are a friendly personal assistant for building a web portfolio. "
+            "You help users update their portfolio based on their requests. "
+            "The user wants to update their existing portfolio HTML. "
+            "You should modify the HTML to incorporate their requested changes while maintaining the overall structure. "
+            "Return ONLY the complete updated HTML file with no additional text before or after."
+        )
+
+        context = (
+            f"Here is the portfolio data extracted from the user's resume:\n"
+            f"{json.dumps(portfolio_data, indent=2)}\n\n"
+            f"Here is the current HTML portfolio:\n"
+            f"{current_portfolio_html}\n\n"
+            f"The user wants this change: {user_request}"
+        )
+
+        response = client.chat.completions.create(
+            model="ft:gpt-4o-mini-2024-07-18:gitfolio::BO7w5BdR",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": context}
+            ],
+            max_tokens=3000,
+            temperature=0.4
+        )
+
+        updated_html = response.choices[0].message.content.strip()
+        updated_html = re.sub(r'^```(?:html)?|```$', '', updated_html.strip(), flags=re.MULTILINE).strip()
+        
+        if not updated_html.startswith("<!DOCTYPE html>"):
+            return {"error": "Unexpected response format", "raw_response": updated_html}
+        
+        return {"html": updated_html}
+
+    except Exception as e:
+        return {"error": f"OpenAI API error: {str(e)}"}
+
 @app.route('/')
 def home():
     return "GitFolio Portfolio Generator API"
@@ -181,6 +227,8 @@ def chat_portfolio():
         
         # Get the user's message
         user_message = data.get("message", "")
+        update_portfolio = data.get("update_portfolio", False)
+        
         if not user_message:
             return jsonify({"error": "No message provided"}), 400
         
@@ -206,6 +254,33 @@ def chat_portfolio():
                 # Only add a brief snippet to avoid token limits
                 portfolio_context += session['portfolio_html'][:500] + "... (HTML continues)"
         
+        # Variable to track if portfolio was updated
+        portfolio_updated = False
+        
+        # Try to update the portfolio if requested and we have the necessary data
+        if update_portfolio and 'portfolio_html' in session and 'portfolio_data' in session:
+            # Check if the message contains a request to update the portfolio
+            update_indicators = [
+                "change", "update", "modify", "add", "remove", "edit", "adjust", 
+                "different", "replace", "switch", "improve", "enhance", "fix"
+            ]
+            
+            # Only attempt to update if the message seems like an update request
+            should_update = any(indicator in user_message.lower() for indicator in update_indicators)
+            
+            if should_update:
+                # Try to update the portfolio
+                portfolio_update = update_portfolio_html(
+                    user_message, 
+                    session['portfolio_html'], 
+                    session['portfolio_data']
+                )
+                
+                if "html" in portfolio_update:
+                    # Update was successful, store the new HTML
+                    session['portfolio_html'] = portfolio_update["html"]
+                    portfolio_updated = True
+        
         # Prepare system message with context
         system_message = {
             "role": "system", 
@@ -229,6 +304,15 @@ def chat_portfolio():
         
         assistant_response = response.choices[0].message.content
         
+        # If portfolio was updated, acknowledge this in the response
+        if portfolio_updated and "I've updated" not in assistant_response:
+            if "I'll" in assistant_response and "update" in assistant_response:
+                # Already talking about updates in future tense, change to past tense
+                assistant_response = assistant_response.replace("I'll", "I've")
+            else:
+                # Add acknowledgment to the beginning of the response
+                assistant_response = "I've updated your portfolio with those changes. " + assistant_response
+        
         # Add the assistant's response to the conversation history
         conversation.append({"role": "assistant", "content": assistant_response})
         
@@ -241,7 +325,8 @@ def chat_portfolio():
         
         return jsonify({
             "response": assistant_response,
-            "has_portfolio": 'portfolio_html' in session
+            "has_portfolio": 'portfolio_html' in session,
+            "portfolio_updated": portfolio_updated
         }), 200
         
     except Exception as e:

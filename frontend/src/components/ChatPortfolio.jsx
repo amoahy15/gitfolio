@@ -64,6 +64,20 @@ const ChatPortfolio = () => {
     }
   };
 
+  // Function to fetch the latest portfolio HTML
+  const fetchCurrentPortfolio = async () => {
+    try {
+      const portfolioResponse = await fetch('http://127.0.0.1:5000/get_portfolio');
+      if (portfolioResponse.ok) {
+        const portfolioData = await portfolioResponse.json();
+        setGeneratedHtml(portfolioData.html);
+        setHasPortfolio(true);
+      }
+    } catch (err) {
+      console.error("Error fetching updated portfolio:", err);
+    }
+  };
+
   const handleSend = async () => {
     if ((!chatInput.trim() && !file) || isTyping) return;
     
@@ -128,7 +142,8 @@ const ChatPortfolio = () => {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
-            message: chatInput 
+            message: chatInput,
+            update_portfolio: true  // Add this flag to indicate we want to update the portfolio
           }),
         });
   
@@ -140,15 +155,16 @@ const ChatPortfolio = () => {
         setTypingMessage('');
         setTypeIndex(0);
         
+        // Check if portfolio was updated and fetch the latest version
+        if (result.portfolio_updated) {
+          // Fetch the updated portfolio HTML
+          await fetchCurrentPortfolio();
+        }
+        
         // Update portfolio state if the backend indicates we have one
         if (result.has_portfolio && !hasPortfolio) {
-          // Fetch the portfolio HTML
-          const portfolioResponse = await fetch('http://127.0.0.1:5000/get_portfolio');
-          if (portfolioResponse.ok) {
-            const portfolioData = await portfolioResponse.json();
-            setGeneratedHtml(portfolioData.html);
-            setHasPortfolio(true);
-          }
+          // Fetch the portfolio HTML if we don't already have it
+          await fetchCurrentPortfolio();
         }
       }
   
