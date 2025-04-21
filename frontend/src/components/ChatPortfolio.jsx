@@ -9,6 +9,7 @@ const ChatPortfolio = () => {
   const [file, setFile] = useState(null);
   const [generatedHtml, setGeneratedHtml] = useState('');
   const [hasPortfolio, setHasPortfolio] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const [typingMessage, setTypingMessage] = useState('');
   const [fullResponse, setFullResponse] = useState('');
@@ -89,12 +90,18 @@ const ChatPortfolio = () => {
         const formData = new FormData();
         formData.append('resume_file', file);
         
+        // Set generating state to true to show spinner
+        setIsGenerating(true);
+        
         const response = await fetch('http://127.0.0.1:5000/generate_portfolio', {
           method: 'POST',
           body: formData,
         });
   
         const result = await response.json();
+        
+        // Portfolio generation complete
+        setIsGenerating(false);
         
         if (response.ok && result.html) {
           setGeneratedHtml(result.html);
@@ -156,6 +163,9 @@ const ChatPortfolio = () => {
       setIsTyping(true);
       setTypingMessage('');
       setTypeIndex(0);
+      
+      // Reset generating state if it was on
+      setIsGenerating(false);
     }
   };
 
@@ -174,6 +184,7 @@ const ChatPortfolio = () => {
       <PortfolioPreview 
         hasPortfolio={hasPortfolio} 
         generatedHtml={generatedHtml} 
+        isGenerating={isGenerating}
       />
     </div>
   );
