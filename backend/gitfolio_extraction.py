@@ -2,20 +2,21 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 from openai import OpenAI
 import os
-from dotenv import load_dotenv
 import PyPDF2
 import docx
 import json
 import re
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+from dotenv import load_dotenv
 # Load environment variables from a .env file
 load_dotenv()
 
 app = Flask(__name__)
-client = OpenAI(api_key = os.environ.get("OPENAI_API_KEY"))
-CORS(app)
 
 # Securely load the OpenAI API key
-
+client = OpenAI(api_key = os.environ.get("OPENAI_API_KEY"))
+CORS(app, resources={r"/*": {"origins": ["http://localhost:3000", "https://amoahy15.github.io"]}})
 
 def extract_portfolio_details(resume_text: str) -> dict:
     """
@@ -103,13 +104,23 @@ def generate_portfolio_html(portfolio_data: dict) -> dict:
 def home():
     return "home page"
 
+limiter = Limiter(
+    app=app,
+    key_func=get_remote_address,
+    default_limits=["200 per day", "50 per hour"]
+)
+
 @app.route('/generate_portfolio', methods=['POST'])
+@limiter.limit("10/minute")
 def generate_portfolio():
     """
     Endpoint that receives a resume via POST, processes it with ChatGPT,
     and returns the extracted portfolio details.
     """
-    
+    MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB Maximum
+    if request.content_length > MAX_FILE_SIZE:
+        return jsonify({"error": "File size exceeds 10MB limit"}), 413
+
     data = request.files['resume_file']
     if data.filename == '':
         return jsonify({"error": "No file selected"}), 400
