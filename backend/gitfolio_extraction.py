@@ -45,6 +45,7 @@ def extract_portfolio_details(resume_text: str) -> dict:
             "{\n"
             "  \"name\": string,\n"
             "  \"link(s)\": [string],\n"
+            "  \"Phone Number\": [string],\n"
             "  \"education\": [string],\n"
             "  \"coursework\": [string],\n"
             "  \"skills\": [string],\n"
@@ -56,7 +57,7 @@ def extract_portfolio_details(resume_text: str) -> dict:
         logger.info("Sending resume to ChatGPT for extraction...")
         
         response = client.chat.completions.create(
-            model="ft:gpt-4o-mini-2024-07-18:gitfolio::BO7w5BdR",
+            model="ft:gpt-4o-mini-2024-07-18:gitfolio::BOc6D4PJ",
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": resume_text}
@@ -102,7 +103,7 @@ def generate_portfolio_html(portfolio_data: dict) -> dict:
         logger.info("Sending portfolio data to ChatGPT for HTML generation...")
 
         response = client.chat.completions.create(
-            model="ft:gpt-4o-mini-2024-07-18:gitfolio::BO7w5BdR",
+            model="ft:gpt-4o-mini-2024-07-18:gitfolio::BOc6D4PJ",
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_input}
@@ -356,7 +357,7 @@ def chat_portfolio():
         # Generate response
         logger.info("Sending chat request to ChatGPT")
         response = client.chat.completions.create(
-            model="ft:gpt-4o-mini-2024-07-18:gitfolio::BO7w5BdR",
+            model="ft:gpt-4o-mini-2024-07-18:gitfolio::BOc6D4PJ",
             messages=messages,
             max_tokens=500,
             temperature=0.7
