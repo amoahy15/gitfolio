@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import '../styles/ChatPortfolio.css';
 import ChatInterface from './ChatInterface';
 import PortfolioPreview from './PortfolioPreview';
@@ -14,37 +14,58 @@ const ChatPortfolio = () => {
   const [typingMessage, setTypingMessage] = useState('');
   const [fullResponse, setFullResponse] = useState('');
   const [typeIndex, setTypeIndex] = useState(0);
+  
+  // Refs for managing the typing effect and cancellation
+  const typingTimerRef = useRef(null);
+  const isCanceledRef = useRef(false);
 
   // Handle the realistic typing effect
   useEffect(() => {
     if (isTyping && fullResponse) {
-      if (typeIndex < fullResponse.length) {
+      // Clear any existing timeout
+      if (typingTimerRef.current) {
+        clearTimeout(typingTimerRef.current);
+      }
+      
+      if (typeIndex < fullResponse.length && !isCanceledRef.current) {
         // Set a random typing speed between 20ms and 60ms for realism
         const randomDelay = Math.floor(Math.random() * 40) + 20;
         
-        const timer = setTimeout(() => {
+        typingTimerRef.current = setTimeout(() => {
           // Add the next character to the displayed message
           setTypingMessage(prev => prev + fullResponse.charAt(typeIndex));
           setTypeIndex(prevIndex => prevIndex + 1);
         }, randomDelay);
         
-        return () => clearTimeout(timer);
-      } else {
-        // Typing is complete - NOW add the message to chat history
-        setIsTyping(false);
-        setChatHistory(prevHistory => [
-          ...prevHistory, 
-          {
-            sender: 'bot',
-            text: fullResponse,
-            isTyping: false
+        return () => {
+          if (typingTimerRef.current) {
+            clearTimeout(typingTimerRef.current);
           }
-        ]);
+        };
+      } else {
+        // Typing is complete or cancelled - add the message to chat history
+        setIsTyping(false);
+        
+        // If cancelled, we'll add what was typed so far
+        // If completed normally, we'll add the full response
+        const finalText = isCanceledRef.current ? typingMessage : fullResponse;
+        
+        if (finalText.trim().length > 0) {
+          setChatHistory(prevHistory => [
+            ...prevHistory, 
+            {
+              sender: 'bot',
+              text: finalText,
+              isTyping: false
+            }
+          ]);
+        }
         
         // Reset the typing state
         setFullResponse('');
         setTypingMessage('');
         setTypeIndex(0);
+        isCanceledRef.current = false; // Reset cancellation state
       }
     }
   }, [isTyping, fullResponse, typeIndex, typingMessage]);
@@ -71,6 +92,38 @@ const ChatPortfolio = () => {
       console.error("Error fetching updated portfolio:", err);
     }
   };
+  
+  // Handle cancelling the typing effect
+  const handleCancelTyping = () => {
+    // Mark as cancelled
+    isCanceledRef.current = true;
+    
+    // Clear any existing timeout
+    if (typingTimerRef.current) {
+      clearTimeout(typingTimerRef.current);
+      typingTimerRef.current = null;
+    }
+    
+    // Force the typing effect to end immediately
+    setIsTyping(false);
+    
+    // Add what was already typed to the chat history
+    if (typingMessage.trim().length > 0) {
+      setChatHistory(prevHistory => [
+        ...prevHistory, 
+        {
+          sender: 'bot',
+          text: typingMessage + " (Message interrupted)",
+          isTyping: false
+        }
+      ]);
+    }
+    
+    // Reset typing state
+    setFullResponse('');
+    setTypingMessage('');
+    setTypeIndex(0);
+  };
 
   const handleSend = async () => {
     if ((!chatInput.trim() && !file) || isTyping) return;
@@ -96,6 +149,7 @@ const ChatPortfolio = () => {
     setIsTyping(true);
     setTypingMessage('');
     setTypeIndex(0);
+    isCanceledRef.current = false; // Reset cancellation state
     
     try {
       if (file) {
@@ -142,6 +196,11 @@ const ChatPortfolio = () => {
   
         const result = await response.json();
         
+        // Check if the typing was cancelled during the API call
+        if (isCanceledRef.current) {
+          return; // Exit early if cancelled during API call
+        }
+        
         // Set the response to be typed out
         setFullResponse(result.response || 'Sorry, I couldn\'t process your request.');
         
@@ -163,6 +222,11 @@ const ChatPortfolio = () => {
     } catch (err) {
       console.error("Fetch error:", err);
       
+      // Check if the typing was cancelled during the API call
+      if (isCanceledRef.current) {
+        return; // Exit early if cancelled during API call
+      }
+      
       // Set error message for typing
       setFullResponse('Failed to contact the server. Make sure Flask is running.');
       
@@ -182,6 +246,7 @@ const ChatPortfolio = () => {
         file={file}
         isTyping={isTyping}
         typingMessage={typingMessage}
+        handleCancelTyping={handleCancelTyping} // Pass the new handler
       />
       <PortfolioPreview 
         hasPortfolio={hasPortfolio} 

@@ -1,8 +1,8 @@
 import React, { useRef, useEffect } from 'react';
 import '../styles/ChatInterface.css';
-// Import the icons (adjust paths as needed)
-import uploadIcon from '../assets/upload.png';
-import sendIcon from '../assets/up-arrow.png';
+import { FaArrowAltCircleUp } from "react-icons/fa";
+import { MdFileUpload } from "react-icons/md";
+import { FaRegStopCircle } from "react-icons/fa";
 
 const ChatInterface = ({ 
   chatInput, 
@@ -12,7 +12,8 @@ const ChatInterface = ({
   handleSend, 
   file, 
   isTyping,
-  typingMessage
+  typingMessage,
+  handleCancelTyping // Handler for canceling typing
 }) => {
   // Create a reference to the hidden file input and chat history
   const fileInputRef = useRef(null);
@@ -123,6 +124,7 @@ const ChatInterface = ({
             placeholder="Send a message..."
             className="chat-textarea"
             rows="1"
+            disabled={isTyping} // Disable input while typing
           />
         </div>
 
@@ -136,35 +138,37 @@ const ChatInterface = ({
               style={{ display: 'none' }}
               accept=".pdf,.docx,.txt"
             />
-            {/* Upload button */}
+            {/* Upload button with React Icon */}
             <button
               className="action-button file-button"
               onClick={triggerFileInput}
               title="Upload Resume (PDF, DOCX, TXT)"
               disabled={isTyping}
             >
-              <img
-                src={uploadIcon}
-                alt="Upload file"
-                className="button-icon"
-              />
+              <MdFileUpload className="button-icon" />
             </button>
           </div>
 
           <div className="chat-actions-right">
-            {/* Send button */}
-            <button
-              className="action-button send-button"
-              onClick={handleSend}
-              title="Send Message"
-              disabled={(chatInput.trim() === '' && !file) || isTyping}
-            >
-              <img
-                src={sendIcon}
-                alt="Send"
-                className="button-icon send-icon"
-              />
-            </button>
+            {/* Send/Cancel button - changes based on typing state */}
+            {isTyping ? (
+              <button
+                className="action-button cancel-button"
+                onClick={handleCancelTyping}
+                title="Cancel response"
+              >
+                <FaRegStopCircle className="button-icon" />
+              </button>
+            ) : (
+              <button
+                className="action-button send-button"
+                onClick={handleSend}
+                title="Send Message"
+                disabled={chatInput.trim() === '' && !file}
+              >
+                <FaArrowAltCircleUp className="button-icon send-icon" />
+              </button>
+            )}
           </div>
         </div>
 

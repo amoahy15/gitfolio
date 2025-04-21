@@ -289,9 +289,25 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: background-color 0.2s, color 0.2s;
 }
 
 .send-button:hover:not(:disabled) {
+  background-color: #3a3a3a;
+}
+
+.cancel-button {
+  color: #ff6b6b;
+  background-color: #2f2f2f;
+  padding: 6px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.cancel-button:hover {
   background-color: #3a3a3a;
 }
 
@@ -351,4 +367,36 @@
 .remove-file:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+
+.cancel-typing-button {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  padding: 6px 12px;
+  background-color: #333;
+  color: #fff;
+  border: 1px solid #444;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s, visibility 0.3s;
+  z-index: 100;
+}
+
+.cancel-typing-button.visible {
+  opacity: 1;
+  visibility: visible;
+}
+
+.cancel-typing-button:hover {
+  background-color: #444;
+}
+
+/* Add this to the bot typing message group */
+.message-group.bot.typing {
+  position: relative; /* For positioning the cancel button */
 }
