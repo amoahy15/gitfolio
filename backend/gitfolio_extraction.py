@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, session
 from flask_cors import CORS
 from openai import OpenAI
 import os
@@ -8,11 +8,16 @@ import json
 import re
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+from flask_session import Session
 from dotenv import load_dotenv
 # Load environment variables from a .env file
 load_dotenv()
 
 app = Flask(__name__)
+# Configure server-side session
+app.config["SESSION_TYPE"] = "filesystem"
+app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-secret-key")
+Session(app)
 
 # Securely load the OpenAI API key
 client = OpenAI(api_key = os.environ.get("OPENAI_API_KEY"))
@@ -73,9 +78,9 @@ def generate_portfolio_html(portfolio_data: dict) -> dict:
     
     try:
         system_prompt = (
-            "You are a friendly personal asisstant for building a web portfolio"
-            "You provide, thoughtful, non-pushy suggestions based on the user's input and the needs of the computer science job market"
-            "Take the following JSON data extracted from a resume and generate an HTML file to create a web portfolio"
+            "You are a friendly personal assistant for building a web portfolio. "
+            "You provide thoughtful, non-pushy suggestions based on the user's input and the needs of the computer science job market. "
+            "Take the following JSON data extracted from a resume and generate an HTML file to create a web portfolio."
         )
 
         user_input = json.dumps(portfolio_data, indent=2)
@@ -102,7 +107,7 @@ def generate_portfolio_html(portfolio_data: dict) -> dict:
 
 @app.route('/')
 def home():
-    return "home page"
+    return "GitFolio Portfolio Generator API"
 
 limiter = Limiter(
     app=app,
@@ -121,10 +126,12 @@ def generate_portfolio():
     if request.content_length > MAX_FILE_SIZE:
         return jsonify({"error": "File size exceeds 10MB limit"}), 413
 
-    data = request.files['resume_file']
-    if data.filename == '':
+    data = request.files.get('resume_file')
+    if not data or data.filename == '':
         return jsonify({"error": "No file selected"}), 400
+    
     try:
+        # Extract text from the resume file
         if(data.filename.endswith('.pdf')):
             reader = PyPDF2.PdfReader(data)
             resume_text = ' '.join(page.extract_text() for page in reader.pages if page.extract_text())
@@ -136,10 +143,26 @@ def generate_portfolio():
         else:
             return jsonify({"error": "Unsupported file type"}), 400
         
+        # Extract portfolio details
         result = extract_portfolio_details(resume_text)
-        status = 400 if "error" in result else 200
+        if "error" in result:
+            return jsonify(result), 400
+        
+        # Generate HTML portfolio
         portfolio = generate_portfolio_html(result)
         status = 400 if "error" in portfolio else 200
+        
+        # Store the portfolio data and HTML in the session
+        session['portfolio_data'] = result
+        if "html" in portfolio:
+            session['portfolio_html'] = portfolio["html"]
+        
+        # Initialize conversation history
+        session['conversation'] = [
+            {"role": "system", "content": "You are a friendly personal assistant for building a web portfolio. You provide thoughtful, non-pushy suggestions based on the user's input and the needs of the computer science job market."},
+            {"role": "assistant", "content": "Thanks for uploading your resume! I've created a portfolio based on the information you provided. Is there anything specific you'd like to change or improve in the portfolio?"}
+        ]
+        
         return jsonify(portfolio), status
     
     except Exception as e:
@@ -147,43 +170,100 @@ def generate_portfolio():
 
 
 @app.route('/chat_portfolio', methods=['POST'])
+@limiter.limit("20/minute")
 def chat_portfolio():
     """
     Endpoint that allows the user to interact with the portfolio assistant.
-    The user sends the conversation history (as a list of message objects)
-    and receives a suggestion based on their preferences.
+    The user sends their message and receives a response based on the conversation history.
     """
-    data = request.get_json()
-    # The conversation should be a list of messages, e.g.:
-    # [{"role": "user", "content": "I want a more modern design."}, ...]
-    conversation = data.get("conversation", [])
-    if not conversation:
-        conversation = []
-    
-    # System prompt to set the behavior of the chatbot assistant.
-    system_message = {
-        "role": "system", 
-        "content": (
-            "You are a friendly personal assistant for building a web portfolio. "
-            "You provide thoughtful, non-pushy suggestions based on the user's input and the needs of the computer science job market. "
-            "Once the user gives you their resume, generate an html file to create a portfolio"
-            "Give clear, concise suggestions to help improve the portfolio, but let the user decide."
-        )
-    }
-    
-    messages = [system_message] + conversation
-    
     try:
+        data = request.get_json()
+        
+        # Get the user's message
+        user_message = data.get("message", "")
+        if not user_message:
+            return jsonify({"error": "No message provided"}), 400
+        
+        # Check if we have a conversation history in the session
+        if 'conversation' not in session:
+            # Initialize with system prompt if this is a new conversation
+            session['conversation'] = [
+                {"role": "system", "content": "You are a friendly personal assistant for building a web portfolio. You provide thoughtful, non-pushy suggestions based on the user's input and the needs of the computer science job market."}
+            ]
+        
+        # Add the user's message to the conversation
+        conversation = session['conversation']
+        conversation.append({"role": "user", "content": user_message})
+        
+        # Determine if we need portfolio context
+        portfolio_context = ""
+        if 'portfolio_data' in session:
+            portfolio_context = "The user has already uploaded a resume and I've extracted the following information:\n"
+            portfolio_context += json.dumps(session['portfolio_data'], indent=2)
+            
+            if 'portfolio_html' in session:
+                portfolio_context += "\n\nAnd generated this HTML portfolio:\n"
+                # Only add a brief snippet to avoid token limits
+                portfolio_context += session['portfolio_html'][:500] + "... (HTML continues)"
+        
+        # Prepare system message with context
+        system_message = {
+            "role": "system", 
+            "content": (
+                "You are a friendly personal assistant for building a web portfolio. "
+                "You provide thoughtful, non-pushy suggestions based on the user's input and the needs of the computer science job market. "
+                f"{portfolio_context}"
+            )
+        }
+        
+        # Create messages for the API call
+        messages = [system_message] + conversation[1:] if len(conversation) > 1 else [system_message, conversation[0]]
+        
+        # Generate response
         response = client.chat.completions.create(
             model="ft:gpt-4o-mini-2024-07-18:gitfolio::BO7w5BdR",
             messages=messages,
-            max_tokens=150,
+            max_tokens=500,
             temperature=0.7
         )
-        suggestion = response.choices[0].message.content
-        return jsonify({"suggestion": suggestion}), 200
+        
+        assistant_response = response.choices[0].message.content
+        
+        # Add the assistant's response to the conversation history
+        conversation.append({"role": "assistant", "content": assistant_response})
+        
+        # Keep only the last 10 messages to avoid excessive history
+        if len(conversation) > 12:  # System prompt + 10 exchanges
+            conversation = [conversation[0]] + conversation[-10:]
+        
+        # Update the session
+        session['conversation'] = conversation
+        
+        return jsonify({
+            "response": assistant_response,
+            "has_portfolio": 'portfolio_html' in session
+        }), 200
+        
     except Exception as e:
-        return jsonify({"error": f"OpenAI API error: {str(e)}"}), 500
+        return jsonify({"error": f"Chat API error: {str(e)}"}), 500
+
+@app.route('/get_portfolio', methods=['GET'])
+def get_portfolio():
+    """
+    Endpoint to retrieve the generated portfolio HTML
+    """
+    if 'portfolio_html' not in session:
+        return jsonify({"error": "No portfolio has been generated yet"}), 404
     
+    return jsonify({"html": session['portfolio_html']}), 200
+
+@app.route('/clear_session', methods=['POST'])
+def clear_session():
+    """
+    Endpoint to clear the current session and start fresh
+    """
+    session.clear()
+    return jsonify({"message": "Session cleared successfully"}), 200
+
 if __name__ == '__main__':
     app.run(debug=True)
