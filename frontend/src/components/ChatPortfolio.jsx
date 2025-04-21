@@ -75,12 +75,18 @@ const ChatPortfolio = () => {
   const handleSend = async () => {
     if ((!chatInput.trim() && !file) || isTyping) return;
     
+    // Store current input value in a variable before clearing it
+    const currentInput = chatInput;
+    
     // Create new message from user
     const newUserMessage = { 
       sender: 'user', 
-      text: chatInput,
+      text: currentInput,
       file: file ? file.name : null
     };
+    
+    // Immediately clear input and file after capturing their values
+    setChatInput('');
     
     // Add user message to chat history
     const updatedChatHistory = [...chatHistory, newUserMessage];
@@ -152,8 +158,7 @@ const ChatPortfolio = () => {
         }
       }
   
-      // Clear input and file after sending
-      setChatInput('');
+      // Clear file after sending (input already cleared at beginning)
       setFile(null);
     } catch (err) {
       console.error("Fetch error:", err);

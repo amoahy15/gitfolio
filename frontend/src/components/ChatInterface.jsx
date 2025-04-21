@@ -123,7 +123,7 @@ const ChatInterface = ({
             placeholder="Send a message..."
             className="chat-textarea"
             rows="1"
-            disabled={isTyping}
+            // Remove disabled property to allow typing while bot is responding
           />
         </div>
 
