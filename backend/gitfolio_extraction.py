@@ -6,12 +6,20 @@ import PyPDF2
 import docx
 import json
 import re
+import logging
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_session import Session
 from dotenv import load_dotenv
 # Load environment variables from a .env file
 load_dotenv()
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger('gitfolio')
 
 app = Flask(__name__)
 # Configure server-side session
@@ -45,6 +53,8 @@ def extract_portfolio_details(resume_text: str) -> dict:
             "}"
         )
         
+        logger.info("Sending resume to ChatGPT for extraction...")
+        
         response = client.chat.completions.create(
             model="ft:gpt-4o-mini-2024-07-18:gitfolio::BO7w5BdR",
             messages=[
@@ -56,15 +66,20 @@ def extract_portfolio_details(resume_text: str) -> dict:
         )
         
         portfolio_data = response.choices[0].message.content.strip()
+        logger.info(f"Received raw response from ChatGPT: {portfolio_data}")
+        
         portfolio_data = re.sub(r"```(?:json)?\n?(.*?)```", r"\1", portfolio_data, flags=re.DOTALL).strip()
         portfolio_data = re.sub(r",\s*(\}|\])", r"\1", portfolio_data)
         try: 
             portfolio_json = json.loads(portfolio_data)
+            logger.info(f"Successfully parsed JSON: {json.dumps(portfolio_json, indent=2)}")
             return portfolio_json
         except json.JSONDecodeError:
+            logger.error(f"Failed to parse JSON from ChatGPT response: {portfolio_data}")
             return {"raw_response": portfolio_data, "warning": "Could not parse JSON"}
         
     except Exception as e:
+        logger.error(f"Error in extract_portfolio_details: {str(e)}")
         return {"error": f"OpenAI API error: {str(e)}"}
     
     
@@ -84,6 +99,7 @@ def generate_portfolio_html(portfolio_data: dict) -> dict:
         )
 
         user_input = json.dumps(portfolio_data, indent=2)
+        logger.info("Sending portfolio data to ChatGPT for HTML generation...")
 
         response = client.chat.completions.create(
             model="ft:gpt-4o-mini-2024-07-18:gitfolio::BO7w5BdR",
@@ -96,13 +112,18 @@ def generate_portfolio_html(portfolio_data: dict) -> dict:
         )
 
         html_content = response.choices[0].message.content.strip()
+        logger.info(f"Received HTML generation response from ChatGPT: {html_content[:200]}...")
+        
         html_content = re.sub(r'^```(?:html)?|```$', '', html_content.strip(), flags=re.MULTILINE).strip()
         if not html_content.startswith("<!DOCTYPE html>"):
+            logger.error(f"Unexpected HTML format: {html_content[:200]}...")
             return {"error": "Unexpected response format", "raw_response": html_content}
         
+        logger.info("Successfully generated HTML portfolio")
         return {"html": html_content}
 
     except Exception as e:
+        logger.error(f"Error in generate_portfolio_html: {str(e)}")
         return {"error": f"OpenAI API error: {str(e)}"}
 
 def update_portfolio_html(user_request: str, current_portfolio_html: str, portfolio_data: dict) -> dict:
@@ -130,6 +151,8 @@ def update_portfolio_html(user_request: str, current_portfolio_html: str, portfo
             f"The user wants this change: {user_request}"
         )
 
+        logger.info(f"Sending update request to ChatGPT: '{user_request[:100]}...'")
+
         response = client.chat.completions.create(
             model="ft:gpt-4o-mini-2024-07-18:gitfolio::BO7w5BdR",
             messages=[
@@ -141,18 +164,24 @@ def update_portfolio_html(user_request: str, current_portfolio_html: str, portfo
         )
 
         updated_html = response.choices[0].message.content.strip()
+        logger.info(f"Received updated HTML from ChatGPT: {updated_html[:200]}...")
+        
         updated_html = re.sub(r'^```(?:html)?|```$', '', updated_html.strip(), flags=re.MULTILINE).strip()
         
         if not updated_html.startswith("<!DOCTYPE html>"):
+            logger.error(f"Unexpected HTML format in update: {updated_html[:200]}...")
             return {"error": "Unexpected response format", "raw_response": updated_html}
         
+        logger.info("Successfully updated HTML portfolio")
         return {"html": updated_html}
 
     except Exception as e:
+        logger.error(f"Error in update_portfolio_html: {str(e)}")
         return {"error": f"OpenAI API error: {str(e)}"}
 
 @app.route('/')
 def home():
+    logger.info("Home route accessed")
     return "GitFolio Portfolio Generator API"
 
 limiter = Limiter(
@@ -168,33 +197,46 @@ def generate_portfolio():
     Endpoint that receives a resume via POST, processes it with ChatGPT,
     and returns the extracted portfolio details.
     """
+    logger.info("Generate portfolio endpoint accessed")
+    
     MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB Maximum
     if request.content_length > MAX_FILE_SIZE:
+        logger.warning(f"File size exceeds limit: {request.content_length} bytes")
         return jsonify({"error": "File size exceeds 10MB limit"}), 413
 
     data = request.files.get('resume_file')
     if not data or data.filename == '':
+        logger.warning("No file selected")
         return jsonify({"error": "No file selected"}), 400
     
     try:
+        logger.info(f"Processing file: {data.filename}")
+        
         # Extract text from the resume file
         if(data.filename.endswith('.pdf')):
             reader = PyPDF2.PdfReader(data)
             resume_text = ' '.join(page.extract_text() for page in reader.pages if page.extract_text())
+            logger.info(f"Extracted text from PDF: {len(resume_text)} characters")
         elif data.filename.endswith('.txt'):
             resume_text = data.read().decode('utf-8')
+            logger.info(f"Extracted text from TXT: {len(resume_text)} characters")
         elif data.filename.endswith('.docx'):
             doc = docx.Document(data)
             resume_text = "\n".join([para.text for para in doc.paragraphs])
+            logger.info(f"Extracted text from DOCX: {len(resume_text)} characters")
         else:
+            logger.warning(f"Unsupported file type: {data.filename}")
             return jsonify({"error": "Unsupported file type"}), 400
         
         # Extract portfolio details
+        logger.info("Extracting portfolio details...")
         result = extract_portfolio_details(resume_text)
         if "error" in result:
+            logger.error(f"Error extracting portfolio details: {result['error']}")
             return jsonify(result), 400
         
         # Generate HTML portfolio
+        logger.info("Generating HTML portfolio...")
         portfolio = generate_portfolio_html(result)
         status = 400 if "error" in portfolio else 200
         
@@ -202,16 +244,20 @@ def generate_portfolio():
         session['portfolio_data'] = result
         if "html" in portfolio:
             session['portfolio_html'] = portfolio["html"]
+            logger.info("Portfolio HTML stored in session")
         
         # Initialize conversation history
         session['conversation'] = [
             {"role": "system", "content": "You are a friendly personal assistant for building a web portfolio. You provide thoughtful, non-pushy suggestions based on the user's input and the needs of the computer science job market."},
             {"role": "assistant", "content": "Thanks for uploading your resume! I've created a portfolio based on the information you provided. Is there anything specific you'd like to change or improve in the portfolio?"}
         ]
+        logger.info("Conversation history initialized")
         
+        logger.info(f"Returning portfolio with status: {status}")
         return jsonify(portfolio), status
     
     except Exception as e:
+        logger.error(f"Failed to process file: {str(e)}")
         return jsonify({"error": f"Failed to process file: {str(e)}"}), 500
 
 
@@ -222,18 +268,26 @@ def chat_portfolio():
     Endpoint that allows the user to interact with the portfolio assistant.
     The user sends their message and receives a response based on the conversation history.
     """
+    logger.info("Chat portfolio endpoint accessed")
+    
     try:
         data = request.get_json()
+        logger.info(f"Received data: {data}")
         
         # Get the user's message
         user_message = data.get("message", "")
         update_portfolio = data.get("update_portfolio", False)
         
         if not user_message:
+            logger.warning("No message provided")
             return jsonify({"error": "No message provided"}), 400
+        
+        logger.info(f"User message: '{user_message}'")
+        logger.info(f"Update portfolio: {update_portfolio}")
         
         # Check if we have a conversation history in the session
         if 'conversation' not in session:
+            logger.info("Initializing new conversation")
             # Initialize with system prompt if this is a new conversation
             session['conversation'] = [
                 {"role": "system", "content": "You are a friendly personal assistant for building a web portfolio. You provide thoughtful, non-pushy suggestions based on the user's input and the needs of the computer science job market."}
@@ -246,6 +300,7 @@ def chat_portfolio():
         # Determine if we need portfolio context
         portfolio_context = ""
         if 'portfolio_data' in session:
+            logger.info("Adding portfolio data to context")
             portfolio_context = "The user has already uploaded a resume and I've extracted the following information:\n"
             portfolio_context += json.dumps(session['portfolio_data'], indent=2)
             
@@ -269,6 +324,7 @@ def chat_portfolio():
             should_update = any(indicator in user_message.lower() for indicator in update_indicators)
             
             if should_update:
+                logger.info("Attempting to update portfolio")
                 # Try to update the portfolio
                 portfolio_update = update_portfolio_html(
                     user_message, 
@@ -280,6 +336,9 @@ def chat_portfolio():
                     # Update was successful, store the new HTML
                     session['portfolio_html'] = portfolio_update["html"]
                     portfolio_updated = True
+                    logger.info("Portfolio HTML updated successfully")
+                else:
+                    logger.warning(f"Portfolio update failed: {portfolio_update.get('error', 'Unknown error')}")
         
         # Prepare system message with context
         system_message = {
@@ -295,6 +354,7 @@ def chat_portfolio():
         messages = [system_message] + conversation[1:] if len(conversation) > 1 else [system_message, conversation[0]]
         
         # Generate response
+        logger.info("Sending chat request to ChatGPT")
         response = client.chat.completions.create(
             model="ft:gpt-4o-mini-2024-07-18:gitfolio::BO7w5BdR",
             messages=messages,
@@ -303,26 +363,31 @@ def chat_portfolio():
         )
         
         assistant_response = response.choices[0].message.content
+        logger.info(f"Received response from ChatGPT: '{assistant_response}'")
         
         # If portfolio was updated, acknowledge this in the response
         if portfolio_updated and "I've updated" not in assistant_response:
             if "I'll" in assistant_response and "update" in assistant_response:
                 # Already talking about updates in future tense, change to past tense
                 assistant_response = assistant_response.replace("I'll", "I've")
+                logger.info("Modified response to acknowledge update (tense change)")
             else:
                 # Add acknowledgment to the beginning of the response
                 assistant_response = "I've updated your portfolio with those changes. " + assistant_response
+                logger.info("Modified response to acknowledge update (prefix)")
         
         # Add the assistant's response to the conversation history
         conversation.append({"role": "assistant", "content": assistant_response})
         
         # Keep only the last 10 messages to avoid excessive history
         if len(conversation) > 12:  # System prompt + 10 exchanges
+            logger.info("Trimming conversation history")
             conversation = [conversation[0]] + conversation[-10:]
         
         # Update the session
         session['conversation'] = conversation
         
+        logger.info("Returning chat response")
         return jsonify({
             "response": assistant_response,
             "has_portfolio": 'portfolio_html' in session,
@@ -330,6 +395,7 @@ def chat_portfolio():
         }), 200
         
     except Exception as e:
+        logger.error(f"Chat API error: {str(e)}")
         return jsonify({"error": f"Chat API error: {str(e)}"}), 500
 
 @app.route('/get_portfolio', methods=['GET'])
@@ -337,9 +403,13 @@ def get_portfolio():
     """
     Endpoint to retrieve the generated portfolio HTML
     """
+    logger.info("Get portfolio endpoint accessed")
+    
     if 'portfolio_html' not in session:
+        logger.warning("No portfolio in session")
         return jsonify({"error": "No portfolio has been generated yet"}), 404
     
+    logger.info("Returning portfolio HTML")
     return jsonify({"html": session['portfolio_html']}), 200
 
 @app.route('/clear_session', methods=['POST'])
@@ -347,8 +417,11 @@ def clear_session():
     """
     Endpoint to clear the current session and start fresh
     """
+    logger.info("Clear session endpoint accessed")
     session.clear()
+    logger.info("Session cleared successfully")
     return jsonify({"message": "Session cleared successfully"}), 200
 
 if __name__ == '__main__':
+    logger.info("Starting GitFolio API server")
     app.run(debug=True)
