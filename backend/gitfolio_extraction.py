@@ -114,7 +114,7 @@ def generate_portfolio_html(portfolio_data: dict) -> dict:
         logger.info("Sending portfolio data to ChatGPT for HTML generation...")
 
         response = client.chat.completions.create(
-            model="ft:gpt-4o-mini-2024-07-18:gitfolio::BO7w5BdR",
+            model="ft:gpt-4o-mini-2024-07-18:gitfolio::BOc6D4PJ",
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_input}
@@ -391,7 +391,7 @@ def chat_portfolio():
         # Generate response
         logger.info("Sending chat request to ChatGPT")
         response = client.chat.completions.create(
-            model="ft:gpt-4o-mini-2024-07-18:gitfolio::BO7w5BdR",
+            model="ft:gpt-4o-mini-2024-07-18:gitfolio::BOc6D4PJ",
             messages=messages,
             max_tokens=500,
             temperature=0.7
