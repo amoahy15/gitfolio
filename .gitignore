@@ -1,6 +1,6 @@
 # Node dependencies
-node_modules
-frontend/node_modules
+node_modules/
+frontend/node_modules/
 
 # Python
 __pycache__/
@@ -10,7 +10,7 @@ __pycache__/
 # Builds
 build/
 dist/
-frontend/build
+frontend/build/
 
 # Environment files
 .env
@@ -34,5 +34,13 @@ test.jsonl
 .pnp
 .pnp.js
 
-backend/flask_session
-backend/__pycache__
+# Backend specific
+backend/__pycache__/
+backend/flask_session/
+backend/venv/
+backend/venv/Lib/
+backend/venv/Lib/site-packages/
+
+# OS generated files # OS generated files
+.DS_Store
+Thumbs.db
