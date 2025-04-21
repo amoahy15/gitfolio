@@ -35,3 +35,4 @@ test.jsonl
 .pnp.js
 
 backend/flask_session
+backend/__pycache__
