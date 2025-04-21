@@ -17,41 +17,35 @@ const ChatPortfolio = () => {
 
   // Handle the realistic typing effect
   useEffect(() => {
-    if (isTyping && fullResponse && typeIndex < fullResponse.length) {
-      // Set a random typing speed between 20ms and 60ms for realism
-      const randomDelay = Math.floor(Math.random() * 40) + 20;
-      
-      const timer = setTimeout(() => {
-        // Add the next character to the displayed message
-        setTypingMessage(prev => prev + fullResponse.charAt(typeIndex));
-        setTypeIndex(prevIndex => prevIndex + 1);
-      }, randomDelay);
-      
-      return () => clearTimeout(timer);
-    } else if (isTyping && fullResponse && typeIndex >= fullResponse.length) {
-      // Typing is complete
-      setIsTyping(false);
-      
-      // Update chat history with the complete message
-      setChatHistory(prevHistory => {
-        const lastMessage = prevHistory[prevHistory.length - 1];
-        if (lastMessage && lastMessage.sender === 'bot' && lastMessage.isTyping) {
-          // Replace the typing placeholder with the full message
-          const updatedHistory = [...prevHistory];
-          updatedHistory[updatedHistory.length - 1] = {
-            ...lastMessage,
+    if (isTyping && fullResponse) {
+      if (typeIndex < fullResponse.length) {
+        // Set a random typing speed between 20ms and 60ms for realism
+        const randomDelay = Math.floor(Math.random() * 40) + 20;
+        
+        const timer = setTimeout(() => {
+          // Add the next character to the displayed message
+          setTypingMessage(prev => prev + fullResponse.charAt(typeIndex));
+          setTypeIndex(prevIndex => prevIndex + 1);
+        }, randomDelay);
+        
+        return () => clearTimeout(timer);
+      } else {
+        // Typing is complete - NOW add the message to chat history
+        setIsTyping(false);
+        setChatHistory(prevHistory => [
+          ...prevHistory, 
+          {
+            sender: 'bot',
             text: fullResponse,
             isTyping: false
-          };
-          return updatedHistory;
-        }
-        return prevHistory;
-      });
-      
-      // Reset the typing state
-      setFullResponse('');
-      setTypingMessage('');
-      setTypeIndex(0);
+          }
+        ]);
+        
+        // Reset the typing state
+        setFullResponse('');
+        setTypingMessage('');
+        setTypeIndex(0);
+      }
     }
   }, [isTyping, fullResponse, typeIndex, typingMessage]);
 
@@ -92,11 +86,10 @@ const ChatPortfolio = () => {
     const updatedChatHistory = [...chatHistory, newUserMessage];
     setChatHistory(updatedChatHistory);
     
-    // Add a temporary bot message placeholder for typing
-    setChatHistory([
-      ...updatedChatHistory, 
-      { sender: 'bot', text: '', isTyping: true }
-    ]);
+    // Set typing to true to show the typing indicator
+    setIsTyping(true);
+    setTypingMessage('');
+    setTypeIndex(0);
     
     try {
       if (file) {
@@ -123,15 +116,9 @@ const ChatPortfolio = () => {
           
           // Set the response to be typed out
           setFullResponse('Your portfolio has been generated! You can view it in the preview panel. Is there anything specific you\'d like to change or improve?');
-          setIsTyping(true);
-          setTypingMessage('');
-          setTypeIndex(0);
         } else {
           // Handle error
           setFullResponse(`Failed to generate portfolio: ${result.error || 'Unknown error'}`);
-          setIsTyping(true);
-          setTypingMessage('');
-          setTypeIndex(0);
         }
       } else {
         // Regular chat message processing - simulate a delay like real chat APIs
@@ -151,9 +138,6 @@ const ChatPortfolio = () => {
         
         // Set the response to be typed out
         setFullResponse(result.response || 'Sorry, I couldn\'t process your request.');
-        setIsTyping(true);
-        setTypingMessage('');
-        setTypeIndex(0);
         
         // Check if portfolio was updated and fetch the latest version
         if (result.portfolio_updated) {
@@ -176,9 +160,6 @@ const ChatPortfolio = () => {
       
       // Set error message for typing
       setFullResponse('Failed to contact the server. Make sure Flask is running.');
-      setIsTyping(true);
-      setTypingMessage('');
-      setTypeIndex(0);
       
       // Reset generating state if it was on
       setIsGenerating(false);

@@ -67,20 +67,20 @@ const ChatInterface = ({
         <h2 className="chat-header">Chat with GitFolio</h2>
       </div>
       <div className="chat-history" ref={chatHistoryRef}>
-        {chatHistory.length === 0 ? (
+        {chatHistory.length === 0 && !isTyping ? (
           <div className="empty-chat">
             <p>Upload your resume or start chatting to create your portfolio</p>
           </div>
         ) : (
           <div className="conversation-container">
+            {/* Actual chat messages */}
             {chatHistory.map((msg, index) => (
               <div key={index} className={`message-group ${msg.sender}`}>
                 <div className="message-role">
                   {msg.sender === 'user' ? 'You' : 'GitFolio'}
                 </div>
                 <div className="message-content">
-                  {/* For regular messages */}
-                  {!msg.isTyping && <p>{msg.text}</p>}
+                  <p>{msg.text}</p>
                   
                   {/* Show file attachment for user messages */}
                   {msg.file && (
@@ -93,7 +93,7 @@ const ChatInterface = ({
               </div>
             ))}
             
-            {/* Show typing effect for the currently typing message */}
+            {/* Show typing effect SEPARATE from chat history */}
             {isTyping && (
               <div className="message-group bot">
                 <div className="message-role">GitFolio</div>
