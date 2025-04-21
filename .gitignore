@@ -33,3 +33,5 @@ test.jsonl
 .idea/
 .pnp
 .pnp.js
+
+backend/flask_session
