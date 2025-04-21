@@ -14,10 +14,12 @@ const ChatPortfolio = () => {
   const [typingMessage, setTypingMessage] = useState('');
   const [fullResponse, setFullResponse] = useState('');
   const [typeIndex, setTypeIndex] = useState(0);
+  const [portfolioKey, setPortfolioKey] = useState(0); // Add a key to force re-rendering
   
   // Refs for managing the typing effect and cancellation
   const typingTimerRef = useRef(null);
   const isCanceledRef = useRef(false);
+  const API_BASE_URL = 'http://127.0.0.1:5000'; // Extract as a constant
 
   // Handle the realistic typing effect
   useEffect(() => {
@@ -70,6 +72,10 @@ const ChatPortfolio = () => {
     }
   }, [isTyping, fullResponse, typeIndex, typingMessage]);
 
+  // We don't need to check for portfolio on component mount since we know it might
+  // not exist yet and that's okay - removing the initial fetch to avoid 404 error
+  // Let the normal workflow handle portfolio creation and updates
+
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
     if (selectedFile) {
@@ -82,17 +88,36 @@ const ChatPortfolio = () => {
   // Function to fetch the latest portfolio HTML
   const fetchCurrentPortfolio = async () => {
     try {
-      const portfolioResponse = await fetch('http://127.0.0.1:5000/get_portfolio');
+      console.log('Fetching current portfolio...');
+      const portfolioResponse = await fetch(`${API_BASE_URL}/get_portfolio`, {
+        credentials: 'include'  // Include cookies for session
+      });
+      
       if (portfolioResponse.ok) {
         const portfolioData = await portfolioResponse.json();
-        setGeneratedHtml(portfolioData.html);
-        setHasPortfolio(true);
+        console.log('Portfolio data received:', portfolioData);
+        
+        if (portfolioData.html) {
+          console.log('Setting new HTML (length):', portfolioData.html.length);
+          
+          // Force a re-render by updating the key first
+          setPortfolioKey(prevKey => prevKey + 1);
+          
+          // Then update the HTML content
+          setGeneratedHtml(portfolioData.html);
+          setHasPortfolio(true);
+        } else {
+          console.warn('No HTML in portfolio data:', portfolioData);
+        }
+      } else if (portfolioResponse.status === 404) {
+        console.log('No portfolio exists yet (404 response)');
+      } else {
+        console.warn('Failed to fetch portfolio:', portfolioResponse.status);
       }
     } catch (err) {
       console.error("Error fetching updated portfolio:", err);
     }
   };
-  
   // Handle cancelling the typing effect
   const handleCancelTyping = () => {
     // Mark as cancelled
@@ -128,8 +153,9 @@ const ChatPortfolio = () => {
   const handleSend = async () => {
     if ((!chatInput.trim() && !file) || isTyping) return;
     
-    // Store current input value in a variable before clearing it
-    const currentInput = chatInput;
+    // Store current input and clear the input field
+    const currentInput = chatInput.trim();
+    setChatInput('');
     
     // Create new message from user
     const newUserMessage = { 
@@ -138,100 +164,80 @@ const ChatPortfolio = () => {
       file: file ? file.name : null
     };
     
-    // Immediately clear input and file after capturing their values
-    setChatInput('');
-    
     // Add user message to chat history
     const updatedChatHistory = [...chatHistory, newUserMessage];
     setChatHistory(updatedChatHistory);
     
-    // Set typing to true to show the typing indicator
+    // Set typing indicators
     setIsTyping(true);
     setTypingMessage('');
     setTypeIndex(0);
-    isCanceledRef.current = false; // Reset cancellation state
+    isCanceledRef.current = false;
     
     try {
       if (file) {
         // Handle file upload and portfolio generation
         const formData = new FormData();
         formData.append('resume_file', file);
-        
-        // Set generating state to true to show spinner
         setIsGenerating(true);
         
-        const response = await fetch('http://127.0.0.1:5000/generate_portfolio', {
+        const response = await fetch(`${API_BASE_URL}/generate_portfolio`, {
           method: 'POST',
           body: formData,
+          credentials: 'include',  // Include cookies for session
         });
   
         const result = await response.json();
-        
-        // Portfolio generation complete
         setIsGenerating(false);
         
         if (response.ok && result.html) {
+          console.log('Setting generated HTML from upload (length):', result.html.length);
           setGeneratedHtml(result.html);
           setHasPortfolio(true);
+          // Force a re-render of the preview
+          setPortfolioKey(prevKey => prevKey + 1);
           
-          // Set the response to be typed out
           setFullResponse('Your portfolio has been generated! You can view it in the preview panel. Is there anything specific you\'d like to change or improve?');
         } else {
-          // Handle error
+          console.error('Portfolio generation failed:', result);
           setFullResponse(`Failed to generate portfolio: ${result.error || 'Unknown error'}`);
         }
       } else {
-        // Regular chat message processing - simulate a delay like real chat APIs
-        await new Promise(resolve => setTimeout(resolve, 500 + Math.random() * 1000));
+        // Regular chat message processing
+        console.log('Sending chat message with update_portfolio=true');
         
-        // Make API call
-        const response = await fetch('http://127.0.0.1:5000/chat_portfolio', {
+        const response = await fetch(`${API_BASE_URL}/chat_portfolio`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',  // Include cookies for session
           body: JSON.stringify({ 
-            message: chatInput,
-            update_portfolio: true  // Add this flag to indicate we want to update the portfolio
+            message: currentInput,
+            update_portfolio: true  // Try to update the portfolio if relevant
           }),
         });
   
         const result = await response.json();
+        console.log('Chat response received:', result);
         
-        // Check if the typing was cancelled during the API call
-        if (isCanceledRef.current) {
-          return; // Exit early if cancelled during API call
-        }
+        if (isCanceledRef.current) return; // Exit if typing was cancelled
         
-        // Set the response to be typed out
         setFullResponse(result.response || 'Sorry, I couldn\'t process your request.');
         
-        // Check if portfolio was updated and fetch the latest version
+        // If portfolio was updated, fetch the latest version
         if (result.portfolio_updated) {
-          // Fetch the updated portfolio HTML
-          await fetchCurrentPortfolio();
-        }
-        
-        // Update portfolio state if the backend indicates we have one
-        if (result.has_portfolio && !hasPortfolio) {
-          // Fetch the portfolio HTML if we don't already have it
+          console.log('Portfolio was updated, fetching latest version');
           await fetchCurrentPortfolio();
         }
       }
   
-      // Clear file after sending (input already cleared at beginning)
       setFile(null);
     } catch (err) {
       console.error("Fetch error:", err);
       
-      // Check if the typing was cancelled during the API call
-      if (isCanceledRef.current) {
-        return; // Exit early if cancelled during API call
+      if (!isCanceledRef.current) {
+        setFullResponse('Failed to contact the server. Make sure Flask is running.');
+        setIsGenerating(false);
       }
-      
-      // Set error message for typing
-      setFullResponse('Failed to contact the server. Make sure Flask is running.');
-      
-      // Reset generating state if it was on
-      setIsGenerating(false);
     }
   };
 
@@ -246,9 +252,10 @@ const ChatPortfolio = () => {
         file={file}
         isTyping={isTyping}
         typingMessage={typingMessage}
-        handleCancelTyping={handleCancelTyping} // Pass the new handler
+        handleCancelTyping={handleCancelTyping}
       />
       <PortfolioPreview 
+        key={portfolioKey} // Add key to force re-render when portfolio updates
         hasPortfolio={hasPortfolio} 
         generatedHtml={generatedHtml} 
         isGenerating={isGenerating}
