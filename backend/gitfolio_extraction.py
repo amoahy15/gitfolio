@@ -32,15 +32,20 @@ app.config["SESSION_TYPE"] = "filesystem"
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-secret-key")
 app.config["SESSION_FILE_DIR"] = os.path.join(tempfile.gettempdir(), "flask_session")
 app.config["SESSION_PERMANENT"] = True
-app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(hours=24)  # Extend session lifetime
-app.config["SESSION_USE_SIGNER"] = True  # Add cryptographic signing
+app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(hours=24)
+app.config["SESSION_USE_SIGNER"] = True  
+Session(app)
+
+# Update CORS configuration to properly allow credentials
+CORS(app, resources={r"/*": {
+    "origins": ["http://localhost:3000", "https://amoahy15.github.io"], 
+    "supports_credentials": True,
+    "methods": ["GET", "POST", "OPTIONS"]
+}})
 Session(app)
 
 # Securely load the OpenAI API key
 client = OpenAI(api_key = os.environ.get("OPENAI_API_KEY"))
-
-# Configure CORS to allow credentials
-CORS(app, resources={r"/*": {"origins": ["http://localhost:3000", "https://amoahy15.github.io"], "supports_credentials": True}})
 
 def extract_portfolio_details(resume_text: str) -> dict:
     """
@@ -148,11 +153,11 @@ def update_portfolio_html(user_request: str, current_portfolio_html: str, portfo
         return {"error": "No existing portfolio to update"}
     
     try:
+        # Use a clearer system prompt focused on HTML modifications
         system_prompt = (
-            "You are a friendly personal assistant for building a web portfolio. "
-            "You help users update their portfolio based on their requests. "
+            "You are a frontend web developer expert. "
             "The user wants to update their existing portfolio HTML. "
-            "You should modify the HTML to incorporate their requested changes while maintaining the overall structure. "
+            "You must modify the HTML to incorporate their requested changes like color schemes, layouts, fonts, etc. "
             "Return ONLY the complete updated HTML file with no additional text before or after. "
             "Do not explain what you did, just return the updated HTML. "
             "Do not wrap the HTML in code blocks or markdown. "
@@ -169,19 +174,19 @@ def update_portfolio_html(user_request: str, current_portfolio_html: str, portfo
 
         logger.info(f"Sending update request to ChatGPT: '{user_request[:100]}...'")
 
+        # Use the same model as other functions for consistency
         response = client.chat.completions.create(
-            model="ft:gpt-4o-mini-2024-07-18:gitfolio::BO7w5BdR",
+            model="ft:gpt-4o-mini-2024-07-18:gitfolio::BOc6D4PJ",  # Use the same model as generate_portfolio_html
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": context}
             ],
             max_tokens=3000,
-            temperature=0.4
+            temperature=0.3  # Lower temperature for more deterministic output
         )
 
         updated_html = response.choices[0].message.content.strip()
         logger.info(f"Received updated HTML from ChatGPT (first 200 chars): {updated_html[:200]}...")
-        logger.info(f"Response starts with '<!DOCTYPE html>': {updated_html.startswith('<!DOCTYPE html>')}")
         
         # More aggressive cleaning of the response
         updated_html = re.sub(r'^```(?:html)?|```$', '', updated_html, flags=re.MULTILINE).strip()
@@ -202,7 +207,7 @@ def update_portfolio_html(user_request: str, current_portfolio_html: str, portfo
 
     except Exception as e:
         logger.error(f"Error in update_portfolio_html: {str(e)}")
-        return {"error": f"OpenAI API error: {str(e)}"}
+        return {"error": f"OpenAI API error: {str(e)}"}   
 
 @app.route('/')
 def home():
@@ -297,10 +302,9 @@ def generate_portfolio():
 def chat_portfolio():
     """
     Endpoint that allows the user to interact with the portfolio assistant.
-    The user sends their message and receives a response based on the conversation history.
     """
     logger.info("Chat portfolio endpoint accessed")
-    logger.info(f"Current session keys: {list(session.keys())}")  # Log session keys
+    logger.info(f"Current session keys: {list(session.keys())}")
     
     try:
         data = request.get_json()
@@ -315,12 +319,11 @@ def chat_portfolio():
             return jsonify({"error": "No message provided"}), 400
         
         logger.info(f"User message: '{user_message}'")
-        logger.info(f"Update portfolio: {update_portfolio}")
+        logger.info(f"Update portfolio flag: {update_portfolio}")
         
         # Check if we have a conversation history in the session
         if 'conversation' not in session:
             logger.info("Initializing new conversation")
-            # Initialize with system prompt if this is a new conversation
             session['conversation'] = [
                 {"role": "system", "content": "You are a friendly personal assistant for building a web portfolio. You provide thoughtful, non-pushy suggestions based on the user's input and the needs of the computer science job market."}
             ]
@@ -331,34 +334,23 @@ def chat_portfolio():
         conversation = session['conversation']
         conversation.append({"role": "user", "content": user_message})
         
-        # Determine if we need portfolio context
-        portfolio_context = ""
-        if 'portfolio_data' in session:
-            logger.info("Adding portfolio data to context")
-            portfolio_context = "The user has already uploaded a resume and I've extracted the following information:\n"
-            portfolio_context += json.dumps(session['portfolio_data'], indent=2)
-            
-            if 'portfolio_html' in session:
-                portfolio_context += "\n\nAnd generated this HTML portfolio:\n"
-                # Only add a brief snippet to avoid token limits
-                portfolio_context += session['portfolio_html'][:500] + "... (HTML continues)"
+        # Determine if this looks like a styling/update request
+        styling_keywords = ['change', 'color', 'font', 'background', 'style', 'move', 'add', 'remove', 'update']
+        is_styling_request = any(keyword in user_message.lower() for keyword in styling_keywords)
         
         # Variable to track if portfolio was updated
         portfolio_updated = False
         
-        # Check if portfolio exists in session and log details for debugging
+        # Check if portfolio exists in session and log details
         has_portfolio = 'portfolio_html' in session
         logger.info(f"Portfolio exists in session: {has_portfolio}")
         if has_portfolio:
             logger.info(f"Portfolio HTML length: {len(session['portfolio_html'])}")
             logger.info(f"First 100 chars of HTML: {session['portfolio_html'][:100]}")
         
-        # Try to update the portfolio if requested and we have the necessary data
-        if update_portfolio and 'portfolio_html' in session and 'portfolio_data' in session:
-            # Always attempt to update the portfolio when update_portfolio is true
-            # The frontend is responsible for determining if an update is needed
-            logger.info("Attempting to update portfolio because update_portfolio=True")
-            # Try to update the portfolio
+        # Try to update the portfolio if requested or if it looks like a styling request
+        if (update_portfolio or is_styling_request) and 'portfolio_html' in session and 'portfolio_data' in session:
+            logger.info("Attempting to update portfolio based on request or styling keywords")
             portfolio_update = update_portfolio_html(
                 user_message, 
                 session['portfolio_html'], 
@@ -370,12 +362,17 @@ def chat_portfolio():
                 session['portfolio_html'] = portfolio_update["html"]
                 portfolio_updated = True
                 logger.info("Portfolio HTML updated successfully")
-                # Explicitly save the session
-                session.modified = True
+                session.modified = True  # Explicitly mark session as modified
             else:
                 logger.warning(f"Portfolio update failed: {portfolio_update.get('error', 'Unknown error')}")
         
         # Prepare system message with context
+        portfolio_context = ""
+        if 'portfolio_data' in session:
+            portfolio_context = "The user has already uploaded a resume and I've extracted their portfolio information."
+            if portfolio_updated:
+                portfolio_context += " I just updated their portfolio based on their request."
+        
         system_message = {
             "role": "system", 
             "content": (
@@ -385,8 +382,9 @@ def chat_portfolio():
             )
         }
         
-        # Create messages for the API call
-        messages = [system_message] + conversation[1:] if len(conversation) > 1 else [system_message, conversation[0]]
+        # Create messages for the API call - keep conversation history manageable
+        recent_conversation = conversation[-6:] if len(conversation) > 6 else conversation
+        messages = [system_message] + recent_conversation
         
         # Generate response
         logger.info("Sending chat request to ChatGPT")
@@ -400,41 +398,39 @@ def chat_portfolio():
         assistant_response = response.choices[0].message.content
         logger.info(f"Received response from ChatGPT: '{assistant_response}'")
         
-        # If portfolio was updated, acknowledge this in the response
-        if portfolio_updated and "I've updated" not in assistant_response:
-            if "I'll" in assistant_response and "update" in assistant_response:
-                # Already talking about updates in future tense, change to past tense
-                assistant_response = assistant_response.replace("I'll", "I've")
-                logger.info("Modified response to acknowledge update (tense change)")
-            else:
-                # Add acknowledgment to the beginning of the response
-                assistant_response = "I've updated your portfolio with those changes. " + assistant_response
-                logger.info("Modified response to acknowledge update (prefix)")
+        # If portfolio was updated but not mentioned in response, modify the response
+        if portfolio_updated and "updated" not in assistant_response.lower():
+            if is_styling_request:
+                color_match = re.search(r'(?:change|make).*?(background|text|color).*?(to|into)\s+(\w+)', user_message, re.IGNORECASE)
+                if color_match:
+                    color_part = color_match.group(3)
+                    assistant_response = f"I've updated your portfolio with the {color_part} color as requested! " + assistant_response
+                else:
+                    assistant_response = f"I've updated your portfolio as requested! " + assistant_response
         
         # Add the assistant's response to the conversation history
         conversation.append({"role": "assistant", "content": assistant_response})
         
-        # Keep only the last 10 messages to avoid excessive history
-        if len(conversation) > 12:  # System prompt + 10 exchanges
-            logger.info("Trimming conversation history")
+        # Keep conversation history manageable
+        if len(conversation) > 12:
             conversation = [conversation[0]] + conversation[-10:]
         
         # Update the session
         session['conversation'] = conversation
         session.modified = True  # Explicitly mark the session as modified
         
-        logger.info("Returning chat response")
-        logger.info(f"Final session keys: {list(session.keys())}")  # Log final session keys
+        logger.info(f"Final session keys: {list(session.keys())}")
         
         return jsonify({
             "response": assistant_response,
-            "has_portfolio": 'portfolio_html' in session,
+            "has_portfolio": has_portfolio,
             "portfolio_updated": portfolio_updated
         }), 200
         
     except Exception as e:
         logger.error(f"Chat API error: {str(e)}")
         return jsonify({"error": f"Chat API error: {str(e)}"}), 500
+    
 
 @app.route('/get_portfolio', methods=['GET'])
 def get_portfolio():
