@@ -11,6 +11,9 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_session import Session
 from dotenv import load_dotenv
+import tempfile
+from datetime import timedelta
+
 # Load environment variables from a .env file
 load_dotenv()
 
@@ -21,15 +24,23 @@ logging.basicConfig(
 )
 logger = logging.getLogger('gitfolio')
 
+# Create Flask app
 app = Flask(__name__)
-# Configure server-side session
+
+# Configure server-side session with longer timeout and explicit file path
 app.config["SESSION_TYPE"] = "filesystem"
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-secret-key")
+app.config["SESSION_FILE_DIR"] = os.path.join(tempfile.gettempdir(), "flask_session")
+app.config["SESSION_PERMANENT"] = True
+app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(hours=24)  # Extend session lifetime
+app.config["SESSION_USE_SIGNER"] = True  # Add cryptographic signing
 Session(app)
 
 # Securely load the OpenAI API key
 client = OpenAI(api_key = os.environ.get("OPENAI_API_KEY"))
-CORS(app, resources={r"/*": {"origins": ["http://localhost:3000", "https://amoahy15.github.io"]}})
+
+# Configure CORS to allow credentials
+CORS(app, resources={r"/*": {"origins": ["http://localhost:3000", "https://amoahy15.github.io"], "supports_credentials": True}})
 
 def extract_portfolio_details(resume_text: str) -> dict:
     """
@@ -45,6 +56,7 @@ def extract_portfolio_details(resume_text: str) -> dict:
             "{\n"
             "  \"name\": string,\n"
             "  \"link(s)\": [string],\n"
+            "  \"Phone Number\": [string],\n"
             "  \"education\": [string],\n"
             "  \"coursework\": [string],\n"
             "  \"skills\": [string],\n"
@@ -56,7 +68,7 @@ def extract_portfolio_details(resume_text: str) -> dict:
         logger.info("Sending resume to ChatGPT for extraction...")
         
         response = client.chat.completions.create(
-            model="ft:gpt-4o-mini-2024-07-18:gitfolio::BO7w5BdR",
+            model="ft:gpt-4o-mini-2024-07-18:gitfolio::BOc6D4PJ",
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": resume_text}
@@ -132,6 +144,7 @@ def update_portfolio_html(user_request: str, current_portfolio_html: str, portfo
     Returns a dictionary with the updated HTML or an error message.
     """
     if not current_portfolio_html:
+        logger.error("Attempted to update portfolio but no existing portfolio HTML found")
         return {"error": "No existing portfolio to update"}
     
     try:
@@ -140,7 +153,10 @@ def update_portfolio_html(user_request: str, current_portfolio_html: str, portfo
             "You help users update their portfolio based on their requests. "
             "The user wants to update their existing portfolio HTML. "
             "You should modify the HTML to incorporate their requested changes while maintaining the overall structure. "
-            "Return ONLY the complete updated HTML file with no additional text before or after."
+            "Return ONLY the complete updated HTML file with no additional text before or after. "
+            "Do not explain what you did, just return the updated HTML. "
+            "Do not wrap the HTML in code blocks or markdown. "
+            "Your response should start with <!DOCTYPE html> and contain ONLY valid HTML."
         )
 
         context = (
@@ -164,13 +180,22 @@ def update_portfolio_html(user_request: str, current_portfolio_html: str, portfo
         )
 
         updated_html = response.choices[0].message.content.strip()
-        logger.info(f"Received updated HTML from ChatGPT: {updated_html[:200]}...")
+        logger.info(f"Received updated HTML from ChatGPT (first 200 chars): {updated_html[:200]}...")
+        logger.info(f"Response starts with '<!DOCTYPE html>': {updated_html.startswith('<!DOCTYPE html>')}")
         
-        updated_html = re.sub(r'^```(?:html)?|```$', '', updated_html.strip(), flags=re.MULTILINE).strip()
+        # More aggressive cleaning of the response
+        updated_html = re.sub(r'^```(?:html)?|```$', '', updated_html, flags=re.MULTILINE).strip()
         
         if not updated_html.startswith("<!DOCTYPE html>"):
-            logger.error(f"Unexpected HTML format in update: {updated_html[:200]}...")
-            return {"error": "Unexpected response format", "raw_response": updated_html}
+            logger.error(f"Unexpected HTML format in update. Response does not start with DOCTYPE")
+            # Try to find HTML in the response
+            html_match = re.search(r'(<!DOCTYPE html>[\s\S]*)', updated_html)
+            if html_match:
+                logger.info("Found HTML in the response after searching")
+                updated_html = html_match.group(1)
+            else:
+                logger.error("Could not find valid HTML in the response")
+                return {"error": "Unexpected response format", "raw_response": updated_html[:500]}
         
         logger.info("Successfully updated HTML portfolio")
         return {"html": updated_html}
@@ -184,6 +209,7 @@ def home():
     logger.info("Home route accessed")
     return "GitFolio Portfolio Generator API"
 
+# Create rate limiter after the app is initialized
 limiter = Limiter(
     app=app,
     key_func=get_remote_address,
@@ -198,6 +224,7 @@ def generate_portfolio():
     and returns the extracted portfolio details.
     """
     logger.info("Generate portfolio endpoint accessed")
+    logger.info(f"Session keys before processing: {list(session.keys())}")
     
     MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB Maximum
     if request.content_length > MAX_FILE_SIZE:
@@ -253,6 +280,10 @@ def generate_portfolio():
         ]
         logger.info("Conversation history initialized")
         
+        # Explicitly mark the session as modified
+        session.modified = True
+        logger.info(f"Session keys after processing: {list(session.keys())}")
+        
         logger.info(f"Returning portfolio with status: {status}")
         return jsonify(portfolio), status
     
@@ -269,6 +300,7 @@ def chat_portfolio():
     The user sends their message and receives a response based on the conversation history.
     """
     logger.info("Chat portfolio endpoint accessed")
+    logger.info(f"Current session keys: {list(session.keys())}")  # Log session keys
     
     try:
         data = request.get_json()
@@ -292,6 +324,8 @@ def chat_portfolio():
             session['conversation'] = [
                 {"role": "system", "content": "You are a friendly personal assistant for building a web portfolio. You provide thoughtful, non-pushy suggestions based on the user's input and the needs of the computer science job market."}
             ]
+        else:
+            logger.info("Using existing conversation from session")
         
         # Add the user's message to the conversation
         conversation = session['conversation']
@@ -312,33 +346,34 @@ def chat_portfolio():
         # Variable to track if portfolio was updated
         portfolio_updated = False
         
+        # Check if portfolio exists in session and log details for debugging
+        has_portfolio = 'portfolio_html' in session
+        logger.info(f"Portfolio exists in session: {has_portfolio}")
+        if has_portfolio:
+            logger.info(f"Portfolio HTML length: {len(session['portfolio_html'])}")
+            logger.info(f"First 100 chars of HTML: {session['portfolio_html'][:100]}")
+        
         # Try to update the portfolio if requested and we have the necessary data
         if update_portfolio and 'portfolio_html' in session and 'portfolio_data' in session:
-            # Check if the message contains a request to update the portfolio
-            update_indicators = [
-                "change", "update", "modify", "add", "remove", "edit", "adjust", 
-                "different", "replace", "switch", "improve", "enhance", "fix"
-            ]
+            # Always attempt to update the portfolio when update_portfolio is true
+            # The frontend is responsible for determining if an update is needed
+            logger.info("Attempting to update portfolio because update_portfolio=True")
+            # Try to update the portfolio
+            portfolio_update = update_portfolio_html(
+                user_message, 
+                session['portfolio_html'], 
+                session['portfolio_data']
+            )
             
-            # Only attempt to update if the message seems like an update request
-            should_update = any(indicator in user_message.lower() for indicator in update_indicators)
-            
-            if should_update:
-                logger.info("Attempting to update portfolio")
-                # Try to update the portfolio
-                portfolio_update = update_portfolio_html(
-                    user_message, 
-                    session['portfolio_html'], 
-                    session['portfolio_data']
-                )
-                
-                if "html" in portfolio_update:
-                    # Update was successful, store the new HTML
-                    session['portfolio_html'] = portfolio_update["html"]
-                    portfolio_updated = True
-                    logger.info("Portfolio HTML updated successfully")
-                else:
-                    logger.warning(f"Portfolio update failed: {portfolio_update.get('error', 'Unknown error')}")
+            if "html" in portfolio_update:
+                # Update was successful, store the new HTML
+                session['portfolio_html'] = portfolio_update["html"]
+                portfolio_updated = True
+                logger.info("Portfolio HTML updated successfully")
+                # Explicitly save the session
+                session.modified = True
+            else:
+                logger.warning(f"Portfolio update failed: {portfolio_update.get('error', 'Unknown error')}")
         
         # Prepare system message with context
         system_message = {
@@ -386,8 +421,11 @@ def chat_portfolio():
         
         # Update the session
         session['conversation'] = conversation
+        session.modified = True  # Explicitly mark the session as modified
         
         logger.info("Returning chat response")
+        logger.info(f"Final session keys: {list(session.keys())}")  # Log final session keys
+        
         return jsonify({
             "response": assistant_response,
             "has_portfolio": 'portfolio_html' in session,
@@ -404,12 +442,13 @@ def get_portfolio():
     Endpoint to retrieve the generated portfolio HTML
     """
     logger.info("Get portfolio endpoint accessed")
+    logger.info(f"Session keys: {list(session.keys())}")
     
     if 'portfolio_html' not in session:
         logger.warning("No portfolio in session")
         return jsonify({"error": "No portfolio has been generated yet"}), 404
     
-    logger.info("Returning portfolio HTML")
+    logger.info(f"Returning portfolio HTML (length: {len(session['portfolio_html'])})")
     return jsonify({"html": session['portfolio_html']}), 200
 
 @app.route('/clear_session', methods=['POST'])
@@ -421,6 +460,27 @@ def clear_session():
     session.clear()
     logger.info("Session cleared successfully")
     return jsonify({"message": "Session cleared successfully"}), 200
+
+@app.route('/debug_session', methods=['GET'])
+def debug_session():
+    """
+    Debugging endpoint to check session content
+    """
+    session_data = {
+        "session_keys": list(session.keys()),
+        "has_portfolio": "portfolio_html" in session,
+        "has_portfolio_data": "portfolio_data" in session,
+        "has_conversation": "conversation" in session
+    }
+    
+    if "portfolio_html" in session:
+        session_data["portfolio_html_length"] = len(session["portfolio_html"])
+        session_data["portfolio_html_start"] = session["portfolio_html"][:100] + "..."
+    
+    if "portfolio_data" in session:
+        session_data["portfolio_data_keys"] = list(session["portfolio_data"].keys())
+    
+    return jsonify(session_data), 200
 
 if __name__ == '__main__':
     logger.info("Starting GitFolio API server")
