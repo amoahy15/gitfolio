@@ -6,7 +6,6 @@ const EmptyPreviewState = ({ isGenerating = false }) => {
     <div className="empty-preview-state">
       <div className="empty-preview-content">
         <div className="preview-header">
-          <div className="title-underline"></div>
         </div>
         
         <svg

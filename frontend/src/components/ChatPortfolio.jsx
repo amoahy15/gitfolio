@@ -3,6 +3,9 @@ import '../styles/ChatPortfolio.css';
 import ChatInterface from './ChatInterface';
 import PortfolioPreview from './PortfolioPreview';
 
+// Get API URL from environment variable or use default
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
+
 const ChatPortfolio = () => {
   const [chatInput, setChatInput] = useState('');
   const [chatHistory, setChatHistory] = useState([]);
@@ -14,27 +17,84 @@ const ChatPortfolio = () => {
   const [typingMessage, setTypingMessage] = useState('');
   const [fullResponse, setFullResponse] = useState('');
   const [typeIndex, setTypeIndex] = useState(0);
-  const [portfolioKey, setPortfolioKey] = useState(0); // Add a key to force re-rendering
+  const [error, setError] = useState(null);
   
-  // Refs for managing the typing effect and cancellation
+  // Refs for typing effect
   const typingTimerRef = useRef(null);
   const isCanceledRef = useRef(false);
-  const API_BASE_URL = 'http://127.0.0.1:5000'; // Extract as a constant
 
-  // Handle the realistic typing effect
+  // Load existing portfolio and conversation history on mount
+  useEffect(() => {
+    const loadExistingData = async () => {
+      try {
+        console.log('Loading existing data...');
+        
+        // Load portfolio
+        const portfolioResponse = await fetch(`${API_BASE_URL}/get_portfolio`, {
+          credentials: 'include'
+        });
+        
+        if (portfolioResponse.ok) {
+          const portfolioData = await portfolioResponse.json();
+          if (portfolioData.html) {
+            console.log('Found existing portfolio');
+            setGeneratedHtml(portfolioData.html);
+            setHasPortfolio(true);
+          }
+        }
+        
+        // Load conversation history
+        const historyResponse = await fetch(`${API_BASE_URL}/get_conversation`, {
+          credentials: 'include'
+        });
+        
+        if (historyResponse.ok) {
+          const historyData = await historyResponse.json();
+          if (historyData.chatHistory && historyData.chatHistory.length > 0) {
+            console.log('Found existing conversation history');
+            setChatHistory(historyData.chatHistory);
+          }
+        }
+      } catch (err) {
+        console.error('Error loading existing data:', err);
+      }
+    };
+    
+    loadExistingData();
+  }, []);
+
+  // Save conversation history when it changes
+  useEffect(() => {
+    const saveConversationHistory = async () => {
+      if (chatHistory.length === 0) return;
+      
+      try {
+        await fetch(`${API_BASE_URL}/save_conversation`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ chatHistory }),
+          credentials: 'include'
+        });
+        console.log('Conversation history saved');
+      } catch (err) {
+        console.error('Error saving conversation history:', err);
+      }
+    };
+    
+    saveConversationHistory();
+  }, [chatHistory]);
+
+  // Handle typing effect
   useEffect(() => {
     if (isTyping && fullResponse) {
-      // Clear any existing timeout
       if (typingTimerRef.current) {
         clearTimeout(typingTimerRef.current);
       }
       
       if (typeIndex < fullResponse.length && !isCanceledRef.current) {
-        // Set a random typing speed between 20ms and 60ms for realism
         const randomDelay = Math.floor(Math.random() * 40) + 20;
         
         typingTimerRef.current = setTimeout(() => {
-          // Add the next character to the displayed message
           setTypingMessage(prev => prev + fullResponse.charAt(typeIndex));
           setTypeIndex(prevIndex => prevIndex + 1);
         }, randomDelay);
@@ -45,11 +105,8 @@ const ChatPortfolio = () => {
           }
         };
       } else {
-        // Typing is complete or cancelled - add the message to chat history
         setIsTyping(false);
-        
-        // If cancelled, we'll add what was typed so far
-        // If completed normally, we'll add the full response
+        setIsGenerating(false); // Make sure to set isGenerating to false when typing is done
         const finalText = isCanceledRef.current ? typingMessage : fullResponse;
         
         if (finalText.trim().length > 0) {
@@ -57,25 +114,20 @@ const ChatPortfolio = () => {
             ...prevHistory, 
             {
               sender: 'bot',
-              text: finalText,
-              isTyping: false
+              text: finalText
             }
           ]);
         }
         
-        // Reset the typing state
         setFullResponse('');
         setTypingMessage('');
         setTypeIndex(0);
-        isCanceledRef.current = false; // Reset cancellation state
+        isCanceledRef.current = false;
       }
     }
   }, [isTyping, fullResponse, typeIndex, typingMessage]);
 
-  // We don't need to check for portfolio on component mount since we know it might
-  // not exist yet and that's okay - removing the initial fetch to avoid 404 error
-  // Let the normal workflow handle portfolio creation and updates
-
+  // Handle file change
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
     if (selectedFile) {
@@ -84,158 +136,143 @@ const ChatPortfolio = () => {
       setFile(null);
     }
   };
-
-  // Function to fetch the latest portfolio HTML
-  const fetchCurrentPortfolio = async () => {
-    try {
-      console.log('Fetching current portfolio...');
-      const portfolioResponse = await fetch(`${API_BASE_URL}/get_portfolio`, {
-        credentials: 'include'  // Include cookies for session
-      });
-      
-      if (portfolioResponse.ok) {
-        const portfolioData = await portfolioResponse.json();
-        console.log('Portfolio data received:', portfolioData);
-        
-        if (portfolioData.html) {
-          console.log('Setting new HTML (length):', portfolioData.html.length);
-          
-          // Force a re-render by updating the key first
-          setPortfolioKey(prevKey => prevKey + 1);
-          
-          // Then update the HTML content
-          setGeneratedHtml(portfolioData.html);
-          setHasPortfolio(true);
-        } else {
-          console.warn('No HTML in portfolio data:', portfolioData);
-        }
-      } else if (portfolioResponse.status === 404) {
-        console.log('No portfolio exists yet (404 response)');
-      } else {
-        console.warn('Failed to fetch portfolio:', portfolioResponse.status);
-      }
-    } catch (err) {
-      console.error("Error fetching updated portfolio:", err);
-    }
-  };
-  // Handle cancelling the typing effect
+  
+  // Handle cancel typing
   const handleCancelTyping = () => {
-    // Mark as cancelled
     isCanceledRef.current = true;
     
-    // Clear any existing timeout
     if (typingTimerRef.current) {
       clearTimeout(typingTimerRef.current);
-      typingTimerRef.current = null;
     }
     
-    // Force the typing effect to end immediately
     setIsTyping(false);
+    setIsGenerating(false); // Also stop generating state when typing is canceled
     
-    // Add what was already typed to the chat history
     if (typingMessage.trim().length > 0) {
       setChatHistory(prevHistory => [
         ...prevHistory, 
         {
           sender: 'bot',
-          text: typingMessage + " (Message interrupted)",
-          isTyping: false
+          text: typingMessage + " (Message interrupted)"
         }
       ]);
     }
     
-    // Reset typing state
     setFullResponse('');
     setTypingMessage('');
     setTypeIndex(0);
   };
 
+  // Handle send message
   const handleSend = async () => {
     if ((!chatInput.trim() && !file) || isTyping) return;
     
-    // Store current input and clear the input field
     const currentInput = chatInput.trim();
     setChatInput('');
+    setError(null);
     
-    // Create new message from user
     const newUserMessage = { 
       sender: 'user', 
       text: currentInput,
       file: file ? file.name : null
     };
     
-    // Add user message to chat history
-    const updatedChatHistory = [...chatHistory, newUserMessage];
-    setChatHistory(updatedChatHistory);
+    setChatHistory(prevHistory => [...prevHistory, newUserMessage]);
     
-    // Set typing indicators
     setIsTyping(true);
     setTypingMessage('');
     setTypeIndex(0);
     isCanceledRef.current = false;
     
+    // Check if the user is asking for styling changes or other portfolio updates
+    const isPortfolioUpdateRequest = currentInput.toLowerCase().includes('change') || 
+                                    currentInput.toLowerCase().includes('update') || 
+                                    currentInput.toLowerCase().includes('modify') || 
+                                    currentInput.toLowerCase().includes('style') || 
+                                    currentInput.toLowerCase().includes('color') ||
+                                    currentInput.toLowerCase().includes('font') ||
+                                    currentInput.toLowerCase().includes('add') ||
+                                    currentInput.toLowerCase().includes('remove');
+    
+    // Set the generating state for file uploads or potential portfolio updates
+    if (file || (hasPortfolio && isPortfolioUpdateRequest)) {
+      setIsGenerating(true);
+    }
+    
     try {
       if (file) {
-        // Handle file upload and portfolio generation
+        // Handle file upload
         const formData = new FormData();
         formData.append('resume_file', file);
-        setIsGenerating(true);
         
         const response = await fetch(`${API_BASE_URL}/generate_portfolio`, {
           method: 'POST',
           body: formData,
-          credentials: 'include',  // Include cookies for session
+          credentials: 'include'
         });
-  
-        const result = await response.json();
-        setIsGenerating(false);
         
-        if (response.ok && result.html) {
-          console.log('Setting generated HTML from upload (length):', result.html.length);
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const result = await response.json();
+        
+        if (result.html) {
+          console.log('Portfolio generated successfully');
           setGeneratedHtml(result.html);
           setHasPortfolio(true);
-          // Force a re-render of the preview
-          setPortfolioKey(prevKey => prevKey + 1);
-          
           setFullResponse('Your portfolio has been generated! You can view it in the preview panel. Is there anything specific you\'d like to change or improve?');
         } else {
-          console.error('Portfolio generation failed:', result);
+          setError(result.error || 'Failed to generate portfolio');
           setFullResponse(`Failed to generate portfolio: ${result.error || 'Unknown error'}`);
+          setIsGenerating(false);
         }
       } else {
-        // Regular chat message processing
-        console.log('Sending chat message with update_portfolio=true');
+        // Handle chat message
+        console.log('Sending chat message');
         
         const response = await fetch(`${API_BASE_URL}/chat_portfolio`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',  // Include cookies for session
-          body: JSON.stringify({ 
-            message: currentInput,
-            update_portfolio: true  // Try to update the portfolio if relevant
-          }),
+          body: JSON.stringify({ message: currentInput }),
+          credentials: 'include'
         });
-  
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
         const result = await response.json();
         console.log('Chat response received:', result);
         
-        if (isCanceledRef.current) return; // Exit if typing was cancelled
+        if (isCanceledRef.current) {
+          setIsGenerating(false);
+          return;
+        }
+        
+        // If HTML was returned, update the preview
+        if (result.html) {
+          console.log('HTML received in response');
+          setGeneratedHtml(result.html);
+          setHasPortfolio(true);
+        } else if (hasPortfolio && isPortfolioUpdateRequest) {
+          setIsGenerating(false);
+        }
         
         setFullResponse(result.response || 'Sorry, I couldn\'t process your request.');
-        
-        // If portfolio was updated, fetch the latest version
-        if (result.portfolio_updated) {
-          console.log('Portfolio was updated, fetching latest version');
-          await fetchCurrentPortfolio();
-        }
       }
   
       setFile(null);
     } catch (err) {
-      console.error("Fetch error:", err);
+      console.error("Error:", err);
       
       if (!isCanceledRef.current) {
-        setFullResponse('Failed to contact the server. Make sure Flask is running.');
+        const errorMessage = err.message.includes('timed out') 
+          ? 'Request timed out. Please try again.' 
+          : 'Failed to contact the server. Please try again.';
+        
+        setError(errorMessage);
+        setFullResponse(errorMessage);
         setIsGenerating(false);
       }
     }
@@ -255,10 +292,10 @@ const ChatPortfolio = () => {
         handleCancelTyping={handleCancelTyping}
       />
       <PortfolioPreview 
-        key={portfolioKey} // Add key to force re-render when portfolio updates
         hasPortfolio={hasPortfolio} 
         generatedHtml={generatedHtml} 
         isGenerating={isGenerating}
+        error={error}
       />
     </div>
   );
