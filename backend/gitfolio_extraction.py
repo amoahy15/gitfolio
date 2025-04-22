@@ -63,7 +63,7 @@ def generate_portfolio():
         response = client.chat.completions.create(
             model="ft:gpt-4o-mini-2024-07-18:gitfolio::BOc6D4PJ",
             messages=[
-                {"role": "system", "content": "You are an Expert Frontend web developer with creativity and nice Chatbot Assitant. Process this resume text and create a complete HTML portfolio page that uses in line css tags. Include all the data from the resume. Return ONLY valid HTML starting with <!DOCTYPE html>. Allow the user to make changes to the styling and you willupdate the html using in line styling tags."},
+                {"role": "system", "content": "You are an Expert Frontend web developer with creativity and nice Chatbot Assitante. Process thdddis resume text and create a complete HTML/CSS portfolio page that is creative and uses in line css tags. Include all the data from the re  Return ONLY valid HTML starting with <!DOCTYPE html>. Allow the user to make changes to the styling and you willupdate the html using in line styling tags. Use some of the code you are fine tuned with to output different and creative portfolios."},
                 {"role": "user", "content": resume_text}
             ],
             max_tokens=3000,
@@ -87,6 +87,64 @@ def generate_portfolio():
 
 @app.route('/chat_portfolio', methods=['POST'])
 def chat_portfolio():
+    """Simple endpoint to receive a chat message and return both conversation and HTML responses."""
+    try:
+        data = request.get_json()
+        user_message = data.get("message", "")
+        
+        if not user_message:
+            return jsonify({"error": "No message provided"}), 400
+        
+        # Get current HTML if available
+        current_html = session.get('portfolio_html', '')
+        has_portfolio = bool(current_html)
+        
+        # Check if the message is likely a portfolio update request
+        likely_update_keywords = ['change', 'update', 'modify', 'style', 'color', 'font', 
+                                'add', 'remove', 'make it', 'background', 'layout', 'create']
+        is_likely_update = any(keyword in user_message.lower() for keyword in likely_update_keywords)
+        
+        # Adjust system prompt based on message content
+        if is_likely_update and has_portfolio:
+            system_content = "You are a web developer assistant. The user is requesting updates to their portfolio. Respond with valid HTML that incorporates their requested changes. The HTML should start with <!DOCTYPE html>."
+        else:
+            system_content = "You are a conversational assistant helping with portfolio creation. DO NOT output HTML code unless explicitly asked to modify the portfolio. Respond conversationally to help the user."
+        
+        # Send both the message and current HTML to ChatGPT
+        response = client.chat.completions.create(
+            model="ft:gpt-4o-mini-2024-07-18:gitfolio::BOc6D4PJ",
+            messages=[
+                {"role": "system", "content": system_content},
+                {"role": "user", "content": f"Current HTML: {current_html}\n\nUser message: {user_message}"}
+            ],
+            max_tokens=3000,
+            temperature=0.5
+        )
+        
+        assistant_response = response.choices[0].message.content.strip()
+        
+        # Check if the response looks like HTML
+        if assistant_response.startswith("<!DOCTYPE html>") or "<html" in assistant_response[:100].lower():
+            # It's HTML - clean it up, store it, and return it
+            html_content = re.sub(r'^```(?:html)?|```$', '', assistant_response, flags=re.MULTILINE).strip()
+            session['portfolio_html'] = html_content
+            session.modified = True
+            
+            # Return both the HTML and a confirmation message
+            return jsonify({
+                "html": html_content,
+                "response": "I've updated your portfolio based on your request. You can see the changes in the preview panel.",
+                "has_portfolio": True
+            }), 200
+        else:
+            # It's a conversational response
+            return jsonify({
+                "response": assistant_response,
+                "has_portfolio": has_portfolio
+            }), 200
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
     """Simple endpoint to receive a chat message and return both conversation and HTML responses."""
     try:
         data = request.get_json()
